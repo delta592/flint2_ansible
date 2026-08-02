@@ -1,0 +1,14 @@
+title = "flint2_ansible gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore local secret directories, examples, and vendored collections"
+paths = [
+  '''^\.env/''',
+  '''^\.secrets/''',
+  '''^collections/''',
+  '''vault\.yml\.example$''',
+  '''\.git/''',
+]

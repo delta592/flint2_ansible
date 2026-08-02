@@ -1,0 +1,19 @@
+---
+profile: production
+
+exclude_paths:
+  - .cache/
+  - .tox/
+  - .venv/
+  - collections/
+
+warn_list:
+  - experimental
+
+kinds:
+  - playbook: "playbooks/*.{yml,yaml}"
+  - tasks: "roles/*/tasks/*.{yml,yaml}"
+  - handlers: "roles/*/handlers/*.{yml,yaml}"
+  - vars: "roles/*/vars/*.{yml,yaml}"
+  - meta: "roles/*/meta/*.{yml,yaml}"
+  - defaults: "roles/*/defaults/*.{yml,yaml}"
