@@ -1,0 +1,16 @@
+---
+- name: Destroy
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Read OpenWrt versions
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/openwrt-versions.yml"
+        name: _openwrt
+
+    - name: Remove OpenWrt containers
+      community.docker.docker_container:
+        name: "openwrt{{ item.split('.')[0] }}{{ item.split('.')[1] }}"
+        state: absent
+        force_kill: true
+      loop: "{{ _openwrt.versions }}"

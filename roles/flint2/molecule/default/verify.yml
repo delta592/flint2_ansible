@@ -1,0 +1,18 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  vars:
+    flint2_hostname: molecule-flint2
+    flint2_tls_enabled: false
+    flint2_tls_verify_endpoints: false
+    flint2_ssh_require_authorized_keys: true
+    flint2_dropbear_password_auth: "off"
+    flint2_dropbear_root_password_auth: "off"
+    flint2_wireless:
+      radios: []
+  tasks:
+    - name: Run Flint 2 verification tasks
+      ansible.builtin.include_role:
+        name: flint2
+        tasks_from: verify.yml

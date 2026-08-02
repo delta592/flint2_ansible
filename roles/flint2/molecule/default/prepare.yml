@@ -1,0 +1,13 @@
+---
+- name: Prepare OpenWrt test host
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Wait for OpenWrt container to accept commands
+      community.openwrt.command:
+        cmd: uci show system.@system[0].hostname
+      register: flint2_molecule_prepare
+      until: flint2_molecule_prepare is succeeded
+      retries: 12
+      delay: 5
+      changed_when: false

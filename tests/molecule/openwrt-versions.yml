@@ -1,0 +1,4 @@
+---
+# OpenWrt rootfs versions used by Molecule Docker scenarios.
+versions:
+  - "24.10.7"
