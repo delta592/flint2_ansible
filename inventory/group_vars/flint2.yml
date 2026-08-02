@@ -1,0 +1,9 @@
+---
+# GL.iNet GL-MT6000 (Flint 2) — MediaTek Filogic 830, 1 GB RAM, 8 GB eMMC
+openwrt_device_model: glinet,gl-mt6000
+openwrt_device_name: Flint 2
+
+# Packages to manage via community.openwrt.opkg (OpenWrt <= 24.x) or
+# community.openwrt.apk (OpenWrt >= 25.x). The init role detects the manager.
+flint2_packages_present: []
+flint2_packages_absent: []

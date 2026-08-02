@@ -1,0 +1,7 @@
+---
+- name: Verify SSH connectivity to Flint 2
+  hosts: router
+  gather_facts: false
+  tasks:
+    - name: Ping router over SSH
+      community.openwrt.ping:

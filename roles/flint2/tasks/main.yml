@@ -1,0 +1,51 @@
+---
+- name: Install Flint 2 packages with opkg
+  when:
+    - flint2_packages_present | length > 0
+    - openwrt_package_manager == "opkg"
+  community.openwrt.opkg:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flint2_packages_present }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Install Flint 2 packages with apk
+  when:
+    - flint2_packages_present | length > 0
+    - openwrt_package_manager == "apk"
+  community.openwrt.apk:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flint2_packages_present }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Remove Flint 2 packages with opkg
+  when:
+    - flint2_packages_absent | length > 0
+    - openwrt_package_manager == "opkg"
+  community.openwrt.opkg:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ flint2_packages_absent }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Remove Flint 2 packages with apk
+  when:
+    - flint2_packages_absent | length > 0
+    - openwrt_package_manager == "apk"
+  community.openwrt.apk:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ flint2_packages_absent }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Set system hostname
+  when: flint2_hostname is defined
+  community.openwrt.uci:
+    command: set
+    key: system.@system[0].hostname
+    value: "{{ flint2_hostname }}"

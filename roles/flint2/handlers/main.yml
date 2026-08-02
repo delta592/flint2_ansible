@@ -1,0 +1,4 @@
+---
+# Handlers from community.openwrt.common (Setup wifi, Reload wifi,
+# Restart network, Wait for connection) are registered by community.openwrt.init
+# in playbooks/site.yml. Notify those handler names from tasks in this role.

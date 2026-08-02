@@ -1,0 +1,17 @@
+---
+- name: Manage GL.iNet GL-MT6000 (Flint 2)
+  hosts: router
+  gather_facts: false
+  roles:
+    - role: community.openwrt.init
+      tags: [always, init]
+
+  tasks:
+    - name: Gather OpenWrt facts
+      community.openwrt.setup:
+      tags: [always, facts]
+
+    - name: Apply Flint 2 configuration
+      ansible.builtin.import_role:
+        name: flint2
+      tags: [config]
