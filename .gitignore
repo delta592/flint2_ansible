@@ -11,6 +11,8 @@ inventory/group_vars/flint2/vault.yml
 .tox/
 .molecule/
 .pytest_cache/
+__pycache__/
+*.py[cod]
 .coverage
 htmlcov/
 context/
