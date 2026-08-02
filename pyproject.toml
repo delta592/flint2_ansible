@@ -1,0 +1,105 @@
+[project]
+name = "flint2-ansible"
+version = "1.0.0"
+description = "Development tooling for GL.iNet Flint 2 Ansible automation"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ansible-core>=2.18,<2.22",
+]
+
+[dependency-groups]
+dev = [
+    "ansible-builder>=3.0.0",
+    "ansible-lint>=25.0.0",
+    "ansible-navigator>=25.0.0",
+    "docker>=7.0.0",
+    "molecule>=25.0.0",
+    "pre-commit>=4.0.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "requests>=2.32.0",
+    "tox>=4.2",
+    "tox-ansible>=25.0.0",
+    "yamllint>=1.35.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --tb=short"
+
+[tool.coverage.run]
+source = ["plugins"]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 0
+show_missing = true
+skip_empty = true
+
+[tool.tox]
+requires = ["tox>=4.2", "tox-ansible"]
+env_list = [
+    "lint",
+    "syntax",
+    "molecule",
+    "pytest",
+    "secrets",
+]
+
+[tool.tox.env_run_base]
+description = "Shared settings for flint2_ansible validation environments"
+skip_install = true
+allowlist_externals = ["uv", "gitleaks"]
+pass_env = [
+    "DOCKER_HOST",
+    "HOME",
+    "PATH",
+    "SSH_AUTH_SOCK",
+    "USER",
+    "UV_*",
+]
+set_env.TOX_WORK_DIR = "{toxworkdir}"
+
+[tool.tox.env.lint]
+description = "Run ansible-lint and yamllint"
+commands = [
+    ["uv", "run", "ansible-lint"],
+    ["uv", "run", "yamllint", "."],
+]
+
+[tool.tox.env.syntax]
+description = "Validate Ansible playbook syntax"
+commands = [
+    ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/site.yml"],
+    ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/ping.yml"],
+]
+
+[tool.tox.env.molecule]
+description = "Run Molecule integration tests for the flint2 role"
+commands = [
+    ["uv", "run", "molecule", "test", "-s", "default"],
+]
+change_dir = "roles/flint2"
+
+[tool.tox.env.pytest]
+description = "Run pytest unit tests with coverage"
+commands = [
+    ["uv", "run", "pytest", "--cov", "--cov-report=term-missing"],
+]
+
+[tool.tox.env.secrets]
+description = "Scan the repository for accidentally committed secrets"
+commands = [
+    ["gitleaks", "detect", "--source", ".", "--config", ".gitleaks.toml", "--no-banner"],
+]
+
+[tool.tox-ansible]
+coverage = true
+molecule = "auto"
+skip = [
+    "devel",
+    "sanity",
+    "unit",
+]
