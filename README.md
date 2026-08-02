@@ -22,7 +22,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 | `community.docker` collection | >= 3.0.0 (Molecule tests) |
 | Python | 3.11+ |
 | [uv](https://docs.astral.sh/uv/) | Python environment and dev dependencies |
-| Docker | Molecule integration tests |
+| Docker | Molecule integration tests ([Colima](https://github.com/abiosoft/colima) supported) |
 | SSH access | `root` key-based login to the router |
 | Make | optional but recommended |
 
@@ -74,7 +74,8 @@ Common validation targets:
 | `make syntax` | `ansible-playbook --syntax-check` |
 | `make check` | Dry-run site playbook with diffs |
 | `make pytest` | Project unit tests with coverage |
-| `make molecule` | Molecule role integration tests (Docker) |
+| `make molecule` | Molecule role integration tests (Docker/Colima) |
+| `make colima-start` | Start Colima for Molecule tests |
 | `make secrets` | Gitleaks secret scan |
 | `make test` | lint, syntax, pytest, and secrets |
 | `make test-all` | `make test` plus Molecule (Docker) |
@@ -82,6 +83,21 @@ Common validation targets:
 | `make ee-build` | Build the Ansible Execution Environment image |
 
 Pre-commit runs the same linters and Gitleaks before each commit once hooks are installed.
+
+### Docker via Colima
+
+Molecule tests provision OpenWrt containers through Docker. OpenWrt publishes `x86_64` rootfs images only, so on Apple Silicon you need Colima with Rosetta emulation:
+
+```bash
+make colima-start    # starts Colima with --vm-type vz --vz-rosetta on arm64 Macs
+make test-all        # or: make molecule
+```
+
+If Colima was previously started without Rosetta, stop it first (`colima stop`) and run `make colima-start` again.
+
+When Colima is running, Make automatically sets `DOCKER_HOST` to `unix://$HOME/.colima/default/docker.sock`. Molecule pulls OpenWrt images with `platform: linux/amd64`. To use a different runtime, set `DOCKER_HOST` yourself before running Molecule.
+
+The Molecule scenario seeds synthetic MTK-style wireless UCI sections, then applies and verifies the `packages`, `system`, `wireless`, and `ssh` task files. TLS and GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
