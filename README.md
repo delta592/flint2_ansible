@@ -19,6 +19,10 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 | --- | --- |
 | Ansible core | 2.18+ |
 | `community.openwrt` collection | >= 1.6.0 |
+| `community.docker` collection | >= 3.0.0 (Molecule tests) |
+| Python | 3.11+ |
+| [uv](https://docs.astral.sh/uv/) | Python environment and dev dependencies |
+| Docker | Molecule integration tests |
 | SSH access | `root` key-based login to the router |
 | Make | optional but recommended |
 
@@ -51,6 +55,33 @@ make verify
 ```
 
 Run `make help` for all available targets.
+
+## Development
+
+Install the Python toolchain, Ansible collections, and Git hooks:
+
+```bash
+make setup
+make install
+make hooks
+```
+
+Common validation targets:
+
+| Target | Purpose |
+| --- | --- |
+| `make lint` | ansible-lint and yamllint |
+| `make syntax` | `ansible-playbook --syntax-check` |
+| `make check` | Dry-run site playbook with diffs |
+| `make pytest` | Project unit tests with coverage |
+| `make molecule` | Molecule role integration tests (Docker) |
+| `make secrets` | Gitleaks secret scan |
+| `make test` | lint, syntax, pytest, and secrets |
+| `make test-all` | `make test` plus Molecule (Docker) |
+| `make tox` | Run tox environments from `pyproject.toml` |
+| `make ee-build` | Build the Ansible Execution Environment image |
+
+Pre-commit runs the same linters and Gitleaks before each commit once hooks are installed.
 
 ## Secrets and certificates
 
@@ -127,8 +158,10 @@ make check
 
 ```
 ansible.cfg                 # Inventory path, collections, SCP settings
-requirements.yml            # community.openwrt collection pin
-Makefile                    # install, ping, site, tag-specific targets
+requirements.yml            # community.openwrt and community.docker collections
+pyproject.toml              # uv-managed Python dev dependencies and tox config
+execution-environment.yml   # Ansible Builder EE definition
+Makefile                    # install, lint, test, site, tag-specific targets
 
 playbooks/
   site.yml                  # Full Flint 2 configuration
@@ -142,6 +175,12 @@ inventory/
   host_vars/router.yml      # ansible_host and Dropbear KEX options
 
 roles/flint2/               # Main configuration role
+  meta/argument_specs.yml   # Role variable validation
+  molecule/default/         # Docker-based integration tests
+
+tests/
+  molecule/                 # Shared Molecule create/destroy playbooks
+  test_project.py           # pytest project sanity checks
 
 docs/
   Flint_2_AP_Installation_Guide_2026-08-01.md
