@@ -7,3 +7,12 @@ collections/ansible_collections/
 roles/flint2/files/certs/*.crt
 roles/flint2/files/certs/*.key
 inventory/group_vars/flint2/vault.yml
+.venv/
+.tox/
+.molecule/
+.pytest_cache/
+.coverage
+htmlcov/
+context/
+flint2-ansible-ee*
+*.egg-info/
