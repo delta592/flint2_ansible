@@ -2,12 +2,63 @@
 - name: Prepare OpenWrt test host
   hosts: all
   gather_facts: false
+  vars_files:
+    - molecule_vars.yml
   tasks:
-    - name: Wait for OpenWrt container to accept commands
-      community.openwrt.command:
-        cmd: uci show system.@system[0].hostname
+    - name: Wait for OpenWrt container to accept UCI commands
+      community.openwrt.uci:
+        command: get
+        key: system.@system[0].hostname
       register: flint2_molecule_prepare
       until: flint2_molecule_prepare is succeeded
       retries: 12
       delay: 5
       changed_when: false
+
+    - name: Ensure wireless UCI config exists in the container rootfs
+      community.openwrt.command:
+        cmd: test -f /etc/config/wireless || touch /etc/config/wireless
+        uses_shell: true
+      changed_when: false
+
+    - name: Seed synthetic Flint 2 wireless device sections
+      community.openwrt.uci:
+        command: set
+        key: "wireless.{{ item }}"
+        value: wifi-device
+      loop:
+        - mt798611
+        - mt798612
+
+    - name: Seed synthetic main AP wireless interface sections
+      community.openwrt.uci:
+        command: set
+        key: "wireless.{{ item.iface }}"
+        value: wifi-iface
+      loop: "{{ flint2_wireless.radios }}"
+
+    - name: Link main AP interfaces to synthetic radio devices
+      community.openwrt.uci:
+        command: set
+        key: "wireless.{{ item.iface }}.device"
+        value: "{{ item.device }}"
+      loop: "{{ flint2_wireless.radios }}"
+
+    - name: Seed synthetic guest and IoT wireless interface sections
+      community.openwrt.uci:
+        command: set
+        key: "wireless.{{ item }}"
+        value: wifi-iface
+      loop: "{{ flint2_wireless_guest_ifaces }}"
+
+    - name: Keep guest and IoT wireless interfaces disabled in test fixtures
+      community.openwrt.uci:
+        command: set
+        key: "wireless.{{ item }}.disabled"
+        value: "1"
+      loop: "{{ flint2_wireless_guest_ifaces }}"
+
+    - name: Commit seeded wireless UCI configuration
+      community.openwrt.uci:
+        command: commit
+        config: wireless
