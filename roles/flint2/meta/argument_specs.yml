@@ -187,3 +187,7 @@ argument_specs:
         type: bool
         default: true
         description: Fail verification when authorized_keys is missing or empty.
+      flint2_verify_glinet_settings:
+        type: bool
+        default: true
+        description: Validate GL.iNet-specific UCI settings such as glconfig.general.mode.
