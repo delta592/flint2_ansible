@@ -9,7 +9,7 @@
     value: "{{ item.0[item.1] }}"
   loop: "{{ flint2_wireless.radios | product(flint2_wireless_device_option_keys) | list }}"
   loop_control:
-    label: "{{ item.0.device }}.{{ item.1 }}={{ item.0[item.1] }}"
+    label: "{{ item.0.device }}.{{ item.1 }}={{ item.0.get(item.1, '') }}"
   notify:
     - Commit UCI changes
     - Reload wifi

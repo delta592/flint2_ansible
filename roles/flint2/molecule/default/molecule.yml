@@ -34,6 +34,9 @@ provisioner:
       all:
         openwrt_gather_facts: false
         openwrt_install_recommended_packages: false
+        openwrt_package_manager: opkg
+        ansible_remote_tmp: /tmp
+        ansible_scp_if_ssh: true
         ansible_scp_extra_args: "-O"
   playbooks:
     create: ../../../../tests/molecule/create.yml

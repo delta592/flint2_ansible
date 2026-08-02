@@ -12,6 +12,8 @@ warn_list:
 
 kinds:
   - playbook: "playbooks/*.{yml,yaml}"
+  - playbook: "roles/*/molecule/*/{converge,prepare,verify}.yml"
+  - vars: "roles/*/molecule/**/molecule_vars.yml"
   - tasks: "roles/*/tasks/*.{yml,yaml}"
   - handlers: "roles/*/handlers/*.{yml,yaml}"
   - vars: "roles/*/vars/*.{yml,yaml}"
