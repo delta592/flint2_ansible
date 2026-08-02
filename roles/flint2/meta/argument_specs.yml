@@ -1,0 +1,189 @@
+---
+argument_specs:
+  main:
+    short_description: Configure a GL.iNet GL-MT6000 (Flint 2) running OpenWrt
+    description:
+      - Apply system, wireless, TLS, SSH, and verification settings to a Flint 2 device.
+      - GL.iNet-specific UCI keys are used where required; TLS and wireless checks can be disabled for test environments.
+    author: delta592
+    options:
+      flint2_hostname:
+        type: str
+        description: System hostname written to UCI system.@system[0].hostname.
+      flint2_network_mode:
+        type: str
+        description: Expected GL.iNet network mode in glconfig.general.mode (for example ap or router).
+      flint2_lan_proto:
+        type: str
+        description: Expected LAN protocol in network.lan.proto (for example dhcp or static).
+      flint2_wan_device:
+        type: str
+        description: Expected WAN uplink device name.
+      flint2_fqdn:
+        type: str
+        description: Fully qualified domain name used for TLS verification and SNI checks.
+      flint2_management_ip:
+        type: str
+        description: Expected management IP address for documentation and validation.
+      flint2_packages_present:
+        type: list
+        elements: str
+        default: []
+        description: Packages to install with opkg or apk.
+      flint2_packages_absent:
+        type: list
+        elements: str
+        default: []
+        description: Packages to remove with opkg or apk.
+      flint2_wireless_device_option_keys:
+        type: list
+        elements: str
+        default:
+          - band
+          - htmode
+          - hwmode
+          - legacy_rates
+          - require_mode
+        description: Radio device option keys copied from each flint2_wireless.radios entry.
+      flint2_wireless_iface_option_keys:
+        type: list
+        elements: str
+        default:
+          - ssid
+          - encryption
+          - key
+        description: Interface option keys managed on main AP interfaces.
+      flint2_wireless:
+        type: dict
+        description: Wireless SSID, encryption, key, and per-radio device settings.
+        options:
+          ssid:
+            type: str
+            description: Main wireless SSID applied to configured AP interfaces.
+          encryption:
+            type: str
+            description: Wireless encryption mode (for example sae-mixed or none).
+          key:
+            type: str
+            default: ""
+            description: Wireless passphrase applied when non-empty.
+          radios:
+            type: list
+            elements: dict
+            default: []
+            description: Radio and interface definitions for MTK devices.
+            options:
+              device:
+                type: str
+                required: true
+                description: UCI wireless device section name.
+              iface:
+                type: str
+                required: true
+                description: UCI wireless interface section name.
+              band:
+                type: str
+                description: Radio band (2g or 5g).
+              htmode:
+                type: str
+                description: Channel width / Wi-Fi generation mode.
+              hwmode:
+                type: str
+                description: Legacy hardware mode when applicable.
+              legacy_rates:
+                type: str
+                description: Whether legacy rates are enabled.
+              require_mode:
+                type: str
+                description: Minimum client mode requirement.
+      flint2_wireless_guest_ifaces:
+        type: list
+        elements: str
+        default: []
+        description: Guest or IoT interface names expected to remain disabled.
+      flint2_env_dir:
+        type: path
+        description: Control-node directory containing public certificates and SSH public keys.
+      flint2_secrets_dir:
+        type: path
+        description: Control-node directory containing private keys and other secrets.
+      flint2_tls_enabled:
+        type: bool
+        default: false
+        description: Deploy TLS certificates to nginx and uHTTPd when true.
+      flint2_tls_cert_files_dir:
+        type: path
+        description: Directory containing leaf and intermediate certificate files.
+      flint2_tls_private_key_dir:
+        type: path
+        description: Directory containing the TLS private key file.
+      flint2_tls_leaf_cert:
+        type: str
+        default: server.crt
+        description: Leaf certificate filename in flint2_tls_cert_files_dir.
+      flint2_tls_intermediate_cert:
+        type: str
+        default: intermediate.crt
+        description: Intermediate certificate filename in flint2_tls_cert_files_dir.
+      flint2_tls_private_key:
+        type: str
+        default: server.key
+        description: Private key filename in flint2_tls_private_key_dir.
+      flint2_tls_fullchain_name:
+        type: str
+        default: fullchain.crt
+        description: Generated full-chain filename on the control node.
+      flint2_tls_backup_suffix:
+        type: str
+        default: pre-ansible
+        description: Suffix appended to remote certificate backups.
+      flint2_tls_nginx_cert_path:
+        type: path
+        default: /etc/nginx/nginx.cer
+        description: Remote nginx certificate path on the router.
+      flint2_tls_nginx_key_path:
+        type: path
+        default: /etc/nginx/nginx.key
+        description: Remote nginx private key path on the router.
+      flint2_tls_uhttpd_cert_path:
+        type: path
+        default: /etc/uhttpd.crt
+        description: Remote uHTTPd certificate path on the router.
+      flint2_tls_uhttpd_key_path:
+        type: path
+        default: /etc/uhttpd.key
+        description: Remote uHTTPd private key path on the router.
+      flint2_tls_verify_endpoints:
+        type: bool
+        default: false
+        description: Validate served TLS fingerprints during the verify tag.
+      flint2_tls_verify_from_client:
+        type: bool
+        default: true
+        description: Compare remote TLS endpoints against the local leaf certificate.
+      flint2_tls_verify_host:
+        type: str
+        description: Hostname or address used for client-side TLS verification.
+      flint2_ssh_authorized_keys:
+        type: list
+        elements: str
+        default: []
+        description: SSH public keys installed into /etc/dropbear/authorized_keys.
+      flint2_dropbear_password_auth:
+        type: str
+        default: "off"
+        choices:
+          - "on"
+          - "off"
+        description: Value for dropbear.main.PasswordAuth.
+      flint2_dropbear_root_password_auth:
+        type: str
+        default: "off"
+        choices:
+          - "on"
+          - "off"
+        description: Value for dropbear.main.RootPasswordAuth.
+      flint2_ssh_require_authorized_keys:
+        type: bool
+        default: true
+        description: Fail verification when authorized_keys is missing or empty.

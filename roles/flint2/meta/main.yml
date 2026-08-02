@@ -1,3 +1,15 @@
 ---
+galaxy_info:
+  role_name: flint2
+  namespace: delta592
+  author: delta592
+  description: Configure GL.iNet GL-MT6000 (Flint 2) OpenWrt devices
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: OpenWrt
+      versions:
+        - all
+
 collections:
   - community.openwrt
