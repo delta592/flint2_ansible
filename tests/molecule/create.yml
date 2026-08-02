@@ -23,6 +23,7 @@
         name: "{{ item.name }}"
         image: "{{ item.image }}"
         command: "{{ item.command }}"
+        platform: linux/amd64
         state: started
         auto_remove: false
       loop: "{{ _platforms }}"
