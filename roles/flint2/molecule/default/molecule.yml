@@ -32,8 +32,8 @@ provisioner:
     directory: ${MOLECULE_EPHEMERAL_DIRECTORY}/inventory
     group_vars:
       all:
-        openwrt_gather_facts: true
-        openwrt_install_recommended_packages: true
+        openwrt_gather_facts: false
+        openwrt_install_recommended_packages: false
         ansible_scp_extra_args: "-O"
   playbooks:
     create: ../../../../tests/molecule/create.yml
