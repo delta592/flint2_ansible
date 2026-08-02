@@ -2,3 +2,5 @@
 collections:
   - name: community.openwrt
     version: ">=1.6.0"
+  - name: community.docker
+    version: ">=3.0.0"

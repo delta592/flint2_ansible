@@ -1,0 +1,46 @@
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ../../../../requirements.yml
+    collections-path: "${MOLECULE_PROJECT_DIRECTORY}/../../collections"
+
+driver:
+  name: default
+
+platforms: []
+
+scenario:
+  test_sequence:
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_COLLECTIONS_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../../collections"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+  config_options:
+    defaults:
+      collections_path: "${MOLECULE_PROJECT_DIRECTORY}/../../collections"
+      roles_path: "${MOLECULE_PROJECT_DIRECTORY}/.."
+  inventory:
+    directory: ${MOLECULE_EPHEMERAL_DIRECTORY}/inventory
+    group_vars:
+      all:
+        openwrt_gather_facts: true
+        openwrt_install_recommended_packages: true
+        ansible_scp_extra_args: "-O"
+  playbooks:
+    create: ../../../../tests/molecule/create.yml
+    destroy: ../../../../tests/molecule/destroy.yml
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+
+verifier:
+  name: ansible
