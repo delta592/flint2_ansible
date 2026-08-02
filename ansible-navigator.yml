@@ -1,0 +1,10 @@
+---
+ansible-navigator:
+  ansible:
+    config:
+      path: ./ansible.cfg
+  execution-environment:
+    enabled: true
+    image: flint2-ansible-ee:latest
+    pull:
+      policy: missing

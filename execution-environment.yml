@@ -1,0 +1,21 @@
+---
+version: 3
+
+images:
+  base_image:
+    name: quay.io/ansible/ansible-runner:latest
+
+dependencies:
+  galaxy:
+    collections:
+      - name: community.openwrt
+        version: ">=1.6.0"
+      - name: community.docker
+        version: ">=3.0.0"
+  python:
+    - ansible-core>=2.18,<2.22
+  python_interpreter:
+    python_path: /usr/bin/python3
+  system:
+    - openssh-clients
+    - sshpass
