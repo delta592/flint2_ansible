@@ -7,10 +7,35 @@ UV ?= uv
 EE_IMAGE ?= flint2-ansible-ee:latest
 MOLECULE_SCENARIO ?= default
 MOLECULE_DIR := roles/flint2
+COLIMA_SOCKET := $(HOME)/.colima/default/docker.sock
+
+# Use Colima's Docker socket when present and DOCKER_HOST is not already set.
+ifeq ($(origin DOCKER_HOST), undefined)
+ifneq (,$(wildcard $(COLIMA_SOCKET)))
+export DOCKER_HOST := unix://$(COLIMA_SOCKET)
+endif
+endif
 
 .PHONY: docker-check
 docker-check:
-	@docker info >/dev/null 2>&1 || (echo "Docker is required for Molecule tests. Start Docker and retry." && exit 1)
+	@docker info >/dev/null 2>&1 || { \
+		echo "Docker is required for Molecule tests."; \
+		if command -v colima >/dev/null 2>&1; then \
+			echo "Start Colima with: make colima-start"; \
+		else \
+			echo "Start Docker and retry."; \
+		fi; \
+		exit 1; \
+	}
+
+## Start Colima for Molecule Docker tests
+.PHONY: colima-start
+colima-start:
+	@if [ "$$(uname -m)" = "arm64" ]; then \
+		colima start --vm-type vz --vz-rosetta; \
+	else \
+		colima start; \
+	fi
 
 ## Show this help
 .PHONY: help
@@ -73,7 +98,7 @@ molecule: setup install docker-check
 
 ## Run Molecule converge only (keep containers running)
 .PHONY: molecule-converge
-molecule-converge: setup install
+molecule-converge: setup install docker-check
 	cd $(MOLECULE_DIR) && $(UV) run molecule converge -s $(MOLECULE_SCENARIO)
 
 ## Destroy Molecule test resources
