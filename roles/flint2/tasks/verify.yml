@@ -14,7 +14,9 @@
     fail_msg: "Hostname is '{{ flint2_verify_hostname.result }}', expected '{{ flint2_hostname }}'"
 
 - name: Read GL.iNet network mode
-  when: flint2_network_mode is defined
+  when:
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_network_mode is defined
   community.openwrt.uci:
     command: get
     key: glconfig.general.mode
@@ -22,7 +24,9 @@
   changed_when: false
 
 - name: Assert GL.iNet network mode matches desired value
-  when: flint2_network_mode is defined
+  when:
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_network_mode is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_network_mode.result == flint2_network_mode

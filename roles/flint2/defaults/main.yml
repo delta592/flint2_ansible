@@ -46,3 +46,6 @@ flint2_ssh_authorized_keys: []
 flint2_dropbear_password_auth: "off"
 flint2_dropbear_root_password_auth: "off"
 flint2_ssh_require_authorized_keys: true
+
+# Set false when verifying against vanilla OpenWrt (for example Molecule containers).
+flint2_verify_glinet_settings: true
