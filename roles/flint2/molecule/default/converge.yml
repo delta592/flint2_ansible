@@ -9,13 +9,6 @@
       community.openwrt.command:
         cmd: /bin/true
         uses_shell: true
-  pre_tasks:
-    - name: Bootstrap OpenWrt facts for Docker-based Molecule tests
-      ansible.builtin.set_fact:
-        openwrt_package_manager: opkg
-        ansible_remote_tmp: /tmp
-        ansible_scp_if_ssh: true
-        ansible_scp_extra_args: "-O"
   tasks:
     - name: Manage Flint 2 packages
       ansible.builtin.import_role:
