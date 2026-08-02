@@ -1,0 +1,44 @@
+---
+- name: Install Flint 2 packages with opkg
+  when:
+    - flint2_packages_present | default([]) | length > 0
+    - openwrt_package_manager == "opkg"
+  community.openwrt.opkg:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flint2_packages_present | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Install Flint 2 packages with apk
+  when:
+    - flint2_packages_present | default([]) | length > 0
+    - openwrt_package_manager == "apk"
+  community.openwrt.apk:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flint2_packages_present | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Remove Flint 2 packages with opkg
+  when:
+    - flint2_packages_absent | default([]) | length > 0
+    - openwrt_package_manager == "opkg"
+  community.openwrt.opkg:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ flint2_packages_absent | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Remove Flint 2 packages with apk
+  when:
+    - flint2_packages_absent | default([]) | length > 0
+    - openwrt_package_manager == "apk"
+  community.openwrt.apk:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ flint2_packages_absent | default([]) }}"
+  loop_control:
+    label: "{{ item }}"

@@ -1,0 +1,114 @@
+---
+- name: Define TLS certificate paths on control node
+  when: flint2_tls_enabled | bool
+  ansible.builtin.set_fact:
+    flint2_tls_leaf_cert_path: "{{ flint2_tls_cert_files_dir }}/{{ flint2_tls_leaf_cert }}"
+    flint2_tls_intermediate_cert_path: "{{ flint2_tls_cert_files_dir }}/{{ flint2_tls_intermediate_cert }}"
+    flint2_tls_private_key_path: "{{ flint2_tls_private_key_dir }}/{{ flint2_tls_private_key }}"
+    flint2_tls_fullchain_path: "{{ flint2_tls_cert_files_dir }}/{{ flint2_tls_fullchain_name }}"
+    flint2_tls_remote_fullchain_path: "/tmp/{{ flint2_tls_fullchain_name }}"
+    flint2_tls_remote_private_key_path: "/tmp/{{ flint2_tls_private_key }}"
+
+- name: Verify TLS certificate files exist on control node
+  when: flint2_tls_enabled | bool
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ flint2_tls_leaf_cert_path }}"
+    - "{{ flint2_tls_intermediate_cert_path }}"
+    - "{{ flint2_tls_private_key_path }}"
+  register: flint2_tls_local_files
+
+- name: Assert TLS certificate files exist on control node
+  when: flint2_tls_enabled | bool
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing TLS file on control node: {{ item.item }}"
+  loop: "{{ flint2_tls_local_files.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Build TLS full certificate chain on control node
+  when: flint2_tls_enabled | bool
+  delegate_to: localhost
+  become: false
+  ansible.builtin.shell: |
+    set -euo pipefail
+    cat "{{ flint2_tls_leaf_cert_path }}" "{{ flint2_tls_intermediate_cert_path }}" > "{{ flint2_tls_fullchain_path }}"
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Verify TLS leaf certificate and private key match
+  when: flint2_tls_enabled | bool
+  delegate_to: localhost
+  become: false
+  ansible.builtin.shell: |
+    set -euo pipefail
+    cert_hash="$(openssl x509 -in "{{ flint2_tls_leaf_cert_path }}" -pubkey -noout | openssl sha256)"
+    key_hash="$(openssl pkey -in "{{ flint2_tls_private_key_path }}" -pubout | openssl sha256)"
+    test "$cert_hash" = "$key_hash"
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Copy TLS certificate and key to router
+  when: flint2_tls_enabled | bool
+  community.openwrt.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - src: "{{ flint2_tls_fullchain_path }}"
+      dest: "{{ flint2_tls_remote_fullchain_path }}"
+      mode: "0644"
+    - src: "{{ flint2_tls_private_key_path }}"
+      dest: "{{ flint2_tls_remote_private_key_path }}"
+      mode: "0600"
+  loop_control:
+    label: "{{ item.dest }}"
+  no_log: true
+
+- name: Back up and install TLS certificate for GL.iNet nginx UI
+  when: flint2_tls_enabled | bool
+  community.openwrt.command:
+    cmd: |
+      set -e
+      cp -p {{ flint2_tls_nginx_cert_path }} {{ flint2_tls_nginx_cert_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
+      cp -p {{ flint2_tls_nginx_key_path }} {{ flint2_tls_nginx_key_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
+      cp {{ flint2_tls_remote_fullchain_path }} {{ flint2_tls_nginx_cert_path }}
+      cp {{ flint2_tls_remote_private_key_path }} {{ flint2_tls_nginx_key_path }}
+      chown root:root {{ flint2_tls_nginx_cert_path }} {{ flint2_tls_nginx_key_path }}
+      chmod 644 {{ flint2_tls_nginx_cert_path }}
+      chmod 600 {{ flint2_tls_nginx_key_path }}
+      nginx -t
+      /etc/init.d/nginx restart
+    uses_shell: true
+
+- name: Back up and install TLS certificate for LuCI uHTTPd
+  when: flint2_tls_enabled | bool
+  community.openwrt.command:
+    cmd: |
+      set -e
+      cp -p {{ flint2_tls_uhttpd_cert_path }} {{ flint2_tls_uhttpd_cert_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
+      cp -p {{ flint2_tls_uhttpd_key_path }} {{ flint2_tls_uhttpd_key_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
+      cp {{ flint2_tls_remote_fullchain_path }} {{ flint2_tls_uhttpd_cert_path }}
+      cp {{ flint2_tls_remote_private_key_path }} {{ flint2_tls_uhttpd_key_path }}
+      chown root:root {{ flint2_tls_uhttpd_cert_path }} {{ flint2_tls_uhttpd_key_path }}
+      chmod 644 {{ flint2_tls_uhttpd_cert_path }}
+      chmod 600 {{ flint2_tls_uhttpd_key_path }}
+      /etc/init.d/uhttpd restart
+    uses_shell: true
+
+- name: Remove temporary TLS files from router
+  when: flint2_tls_enabled | bool
+  community.openwrt.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ flint2_tls_remote_fullchain_path }}"
+    - "{{ flint2_tls_remote_private_key_path }}"
+  loop_control:
+    label: "{{ item }}"

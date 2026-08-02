@@ -4,7 +4,10 @@ openwrt_gather_facts: true
 ansible_user: root
 ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
 
-openwrt_scp_if_ssh: smart
+openwrt_scp_if_ssh: true
+
+# Dropbear has no sftp-server; OpenSSH scp defaults to SFTP unless forced to legacy SCP.
+ansible_scp_extra_args: "-O"
 openwrt_remote_tmp: /tmp
 openwrt_install_recommended_packages: true
 openwrt_wait_for_connection: true

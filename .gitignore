@@ -2,3 +2,8 @@ collections/ansible_collections/
 *.retry
 .vault_pass
 .ansible/
+.env/
+.secrets/
+roles/flint2/files/certs/*.crt
+roles/flint2/files/certs/*.key
+inventory/group_vars/flint2/vault.yml

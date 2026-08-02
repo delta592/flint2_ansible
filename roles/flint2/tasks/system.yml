@@ -1,0 +1,9 @@
+---
+- name: Set system hostname
+  when: flint2_hostname is defined
+  community.openwrt.uci:
+    command: set
+    key: system.@system[0].hostname
+    value: "{{ flint2_hostname }}"
+  notify:
+    - Commit UCI changes
