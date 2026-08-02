@@ -1,0 +1,39 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "github>delta592/renovate-config"
+    ],
+    "packageRules": [
+        {
+            "description": "Pin Python runtime to 3.14.x (matches requires-python and .python-version)",
+            "matchManagers": [
+                "pyenv"
+            ],
+            "matchPackageNames": [
+                "python"
+            ],
+            "allowedVersions": "/^3\\.14(\\.\\d+)?$/"
+        },
+        {
+            "description": "Disable coverage updates (ansible-test requires exact coverage==7.10.7 for ansible-core 2.21)",
+            "matchManagers": [
+                "pep621"
+            ],
+            "matchDatasources": [
+                "pypi"
+            ],
+            "matchPackageNames": [
+                "coverage",
+                "coveragepy"
+            ],
+            "enabled": false
+        },
+        {
+            "description": "Keep [project] requires-python as a PEP 440 range (overrides :pinVersions)",
+            "matchDepTypes": [
+                "requires-python"
+            ],
+            "rangeStrategy": "replace"
+        }
+    ]
+}
