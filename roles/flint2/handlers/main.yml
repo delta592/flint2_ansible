@@ -1,4 +1,12 @@
 ---
-# Handlers from community.openwrt.common (Setup wifi, Reload wifi,
-# Restart network, Wait for connection) are registered by community.openwrt.init
-# in playbooks/site.yml. Notify those handler names from tasks in this role.
+# community.openwrt.common handlers (Reload wifi, Restart network, etc.)
+# are registered by community.openwrt.init in playbooks/site.yml.
+
+- name: Commit UCI changes
+  community.openwrt.uci:
+    command: commit
+
+- name: Restart dropbear
+  community.openwrt.command:
+    cmd: /etc/init.d/dropbear restart
+    uses_shell: true

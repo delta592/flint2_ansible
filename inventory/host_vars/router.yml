@@ -1,3 +1,5 @@
 ---
-# GL.iNet stock firmware default; use 192.168.1.1 for vanilla OpenWrt
-ansible_host: 192.168.8.1
+ansible_host: wapap1003
+
+# Dropbear on GL.iNet firmware may require explicit KEX algorithms (see TLS guide).
+ansible_ssh_extra_args: "-o KexAlgorithms=+curve25519-sha256,curve25519-sha256@libssh.org"

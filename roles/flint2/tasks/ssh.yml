@@ -1,0 +1,39 @@
+---
+- name: Disable Dropbear password authentication
+  when: flint2_dropbear_password_auth is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.PasswordAuth
+    value: "{{ flint2_dropbear_password_auth }}"
+  notify:
+    - Commit UCI changes
+    - Restart dropbear
+
+- name: Disable Dropbear root password authentication
+  when: flint2_dropbear_root_password_auth is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.RootPasswordAuth
+    value: "{{ flint2_dropbear_root_password_auth }}"
+  notify:
+    - Commit UCI changes
+    - Restart dropbear
+
+- name: Ensure Dropbear authorized_keys directory exists
+  when: flint2_ssh_authorized_keys | length > 0
+  community.openwrt.file:
+    path: /etc/dropbear
+    state: directory
+    mode: "0755"
+
+- name: Install SSH public keys for root
+  when: flint2_ssh_authorized_keys | length > 0
+  community.openwrt.lineinfile:
+    path: /etc/dropbear/authorized_keys
+    line: "{{ item }}"
+    create: true
+    mode: "0600"
+    state: present
+  loop: "{{ flint2_ssh_authorized_keys }}"
+  loop_control:
+    label: "{{ item.split()[0] }} {{ item.split()[1] if item.split() | length > 1 else 'key' }}"

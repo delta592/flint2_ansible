@@ -1,51 +1,42 @@
 ---
-- name: Install Flint 2 packages with opkg
-  when:
-    - flint2_packages_present | length > 0
-    - openwrt_package_manager == "opkg"
-  community.openwrt.opkg:
-    name: "{{ item }}"
-    state: present
-  loop: "{{ flint2_packages_present }}"
-  loop_control:
-    label: "{{ item }}"
+- name: Manage Flint 2 packages
+  ansible.builtin.include_tasks:
+    file: packages.yml
+    apply:
+      tags: [packages]
+  tags: [packages]
 
-- name: Install Flint 2 packages with apk
-  when:
-    - flint2_packages_present | length > 0
-    - openwrt_package_manager == "apk"
-  community.openwrt.apk:
-    name: "{{ item }}"
-    state: present
-  loop: "{{ flint2_packages_present }}"
-  loop_control:
-    label: "{{ item }}"
+- name: Configure Flint 2 system settings
+  ansible.builtin.include_tasks:
+    file: system.yml
+    apply:
+      tags: [system]
+  tags: [system]
 
-- name: Remove Flint 2 packages with opkg
-  when:
-    - flint2_packages_absent | length > 0
-    - openwrt_package_manager == "opkg"
-  community.openwrt.opkg:
-    name: "{{ item }}"
-    state: absent
-  loop: "{{ flint2_packages_absent }}"
-  loop_control:
-    label: "{{ item }}"
+- name: Configure Flint 2 wireless networks
+  ansible.builtin.include_tasks:
+    file: wireless.yml
+    apply:
+      tags: [wireless]
+  tags: [wireless]
 
-- name: Remove Flint 2 packages with apk
-  when:
-    - flint2_packages_absent | length > 0
-    - openwrt_package_manager == "apk"
-  community.openwrt.apk:
-    name: "{{ item }}"
-    state: absent
-  loop: "{{ flint2_packages_absent }}"
-  loop_control:
-    label: "{{ item }}"
+- name: Install Flint 2 TLS certificates
+  ansible.builtin.include_tasks:
+    file: tls.yml
+    apply:
+      tags: [tls]
+  tags: [tls]
 
-- name: Set system hostname
-  when: flint2_hostname is defined
-  community.openwrt.uci:
-    command: set
-    key: system.@system[0].hostname
-    value: "{{ flint2_hostname }}"
+- name: Configure Flint 2 SSH access
+  ansible.builtin.include_tasks:
+    file: ssh.yml
+    apply:
+      tags: [ssh]
+  tags: [ssh]
+
+- name: Validate Flint 2 configuration
+  ansible.builtin.include_tasks:
+    file: verify.yml
+    apply:
+      tags: [verify]
+  tags: [verify]

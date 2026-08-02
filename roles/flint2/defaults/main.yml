@@ -1,2 +1,48 @@
 ---
-flint2_hostname: flint2
+flint2_hostname: router
+
+flint2_network_mode: router
+flint2_lan_proto: static
+flint2_wan_device: eth1
+
+flint2_wireless_device_option_keys:
+  - band
+  - htmode
+  - hwmode
+  - legacy_rates
+  - require_mode
+
+flint2_wireless:
+  ssid: ARGUS
+  encryption: sae-mixed
+  key: ""
+  radios: []
+
+flint2_wireless_guest_ifaces: []
+
+flint2_env_dir: "{{ inventory_dir }}/../.env"
+flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
+
+flint2_tls_enabled: false
+flint2_tls_cert_files_dir: "{{ flint2_env_dir }}"
+flint2_tls_private_key_dir: "{{ flint2_secrets_dir }}"
+flint2_tls_leaf_cert: server.crt
+flint2_tls_intermediate_cert: intermediate.crt
+flint2_tls_private_key: server.key
+flint2_tls_fullchain_name: fullchain.crt
+flint2_tls_backup_suffix: pre-ansible
+
+flint2_tls_nginx_cert_path: /etc/nginx/nginx.cer
+flint2_tls_nginx_key_path: /etc/nginx/nginx.key
+flint2_tls_uhttpd_cert_path: /etc/uhttpd.crt
+flint2_tls_uhttpd_key_path: /etc/uhttpd.key
+
+flint2_tls_verify_endpoints: false
+flint2_tls_verify_from_client: true
+flint2_tls_verify_host: "{{ flint2_fqdn | default(ansible_host) }}"
+
+flint2_ssh_authorized_keys: []
+
+flint2_dropbear_password_auth: "off"
+flint2_dropbear_root_password_auth: "off"
+flint2_ssh_require_authorized_keys: true

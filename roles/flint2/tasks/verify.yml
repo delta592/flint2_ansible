@@ -1,0 +1,252 @@
+---
+- name: Read configured system hostname
+  community.openwrt.uci:
+    command: get
+    key: system.@system[0].hostname
+  register: flint2_verify_hostname
+  changed_when: false
+
+- name: Assert system hostname matches desired value
+  when: flint2_hostname is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_hostname.result == flint2_hostname
+    fail_msg: "Hostname is '{{ flint2_verify_hostname.result }}', expected '{{ flint2_hostname }}'"
+
+- name: Read GL.iNet network mode
+  when: flint2_network_mode is defined
+  community.openwrt.uci:
+    command: get
+    key: glconfig.general.mode
+  register: flint2_verify_network_mode
+  changed_when: false
+
+- name: Assert GL.iNet network mode matches desired value
+  when: flint2_network_mode is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_network_mode.result == flint2_network_mode
+    fail_msg: "Network mode is '{{ flint2_verify_network_mode.result }}', expected '{{ flint2_network_mode }}'"
+
+- name: Read LAN interface protocol
+  when: flint2_lan_proto is defined
+  community.openwrt.uci:
+    command: get
+    key: network.lan.proto
+  register: flint2_verify_lan_proto
+  changed_when: false
+
+- name: Assert LAN uses expected IP protocol
+  when: flint2_lan_proto is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_lan_proto.result == flint2_lan_proto
+    fail_msg: "network.lan.proto is '{{ flint2_verify_lan_proto.result }}', expected '{{ flint2_lan_proto }}'"
+
+- name: Read configured wireless SSIDs on main AP interfaces
+  when: flint2_wireless.ssid is defined
+  community.openwrt.uci:
+    command: get
+    key: "wireless.{{ item.iface }}.ssid"
+  loop: "{{ flint2_wireless.radios | default([]) | selectattr('iface', 'defined') | list }}"
+  register: flint2_verify_wireless_ssids
+  changed_when: false
+
+- name: Assert wireless SSIDs match desired value
+  when:
+    - flint2_wireless.ssid is defined
+    - flint2_verify_wireless_ssids.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == flint2_wireless.ssid
+    fail_msg: "SSID on {{ item.item.iface }} is '{{ item.result }}'"
+  loop: "{{ flint2_verify_wireless_ssids.results }}"
+  loop_control:
+    label: "{{ item.item.iface }}"
+
+- name: Read guest and IoT wireless interface disabled state
+  when: flint2_wireless_guest_ifaces | default([]) | length > 0
+  community.openwrt.uci:
+    command: get
+    key: "wireless.{{ item }}.disabled"
+  loop: "{{ flint2_wireless_guest_ifaces }}"
+  register: flint2_verify_guest_disabled
+  changed_when: false
+  failed_when: false
+
+- name: Assert guest and IoT wireless interfaces remain disabled
+  when: flint2_verify_guest_disabled.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result | default('1') == '1'
+    fail_msg: "Expected {{ item.item }} to remain disabled"
+  loop: "{{ flint2_verify_guest_disabled.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Read Dropbear authentication policy
+  community.openwrt.uci:
+    command: get
+    key: "{{ item }}"
+  loop:
+    - dropbear.main.PasswordAuth
+    - dropbear.main.RootPasswordAuth
+  register: flint2_verify_dropbear_auth
+  changed_when: false
+
+- name: Assert Dropbear password authentication is disabled
+  when: flint2_dropbear_password_auth is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_auth.results[0].result == flint2_dropbear_password_auth
+    fail_msg: >-
+      dropbear.main.PasswordAuth is '{{ flint2_verify_dropbear_auth.results[0].result }}',
+      expected '{{ flint2_dropbear_password_auth }}'
+
+- name: Assert Dropbear root password authentication is disabled
+  when: flint2_dropbear_root_password_auth is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_auth.results[1].result == flint2_dropbear_root_password_auth
+    fail_msg: >-
+      dropbear.main.RootPasswordAuth is '{{ flint2_verify_dropbear_auth.results[1].result }}',
+      expected '{{ flint2_dropbear_root_password_auth }}'
+
+- name: Check Dropbear authorized_keys file
+  when: flint2_ssh_require_authorized_keys | bool
+  community.openwrt.stat:
+    path: /etc/dropbear/authorized_keys
+  register: flint2_verify_authorized_keys_file
+  changed_when: false
+
+- name: Assert Dropbear authorized_keys exists for key-only SSH
+  when: flint2_ssh_require_authorized_keys | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_authorized_keys_file.stat.exists
+      - flint2_verify_authorized_keys_file.stat.size | int > 0
+    fail_msg: /etc/dropbear/authorized_keys is missing or empty; key-only SSH requires at least one key
+
+- name: Get expected nginx certificate fingerprint
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+  community.openwrt.command:
+    cmd: openssl x509 -in {{ flint2_tls_nginx_cert_path | quote }} -noout -fingerprint -sha256
+    uses_shell: true
+  register: flint2_verify_tls_nginx_expected
+  changed_when: false
+
+- name: Get served nginx certificate fingerprint
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+  community.openwrt.command:
+    cmd: openssl s_client -connect 127.0.0.1:443 -servername {{ flint2_fqdn | quote }} </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256
+    uses_shell: true
+  register: flint2_verify_tls_nginx_served
+  changed_when: false
+
+- name: Assert nginx serves the installed certificate on port 443
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_tls_nginx_served.stdout | length > 0
+      - flint2_verify_tls_nginx_served.stdout == flint2_verify_tls_nginx_expected.stdout
+    fail_msg: >-
+      nginx TLS fingerprint mismatch on port 443
+      (expected {{ flint2_verify_tls_nginx_expected.stdout | default('missing') }},
+      served {{ flint2_verify_tls_nginx_served.stdout | default('missing') }})
+
+- name: Get expected uHTTPd certificate fingerprint
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+  community.openwrt.command:
+    cmd: openssl x509 -in {{ flint2_tls_uhttpd_cert_path | quote }} -noout -fingerprint -sha256
+    uses_shell: true
+  register: flint2_verify_tls_uhttpd_expected
+  changed_when: false
+
+- name: Get served uHTTPd certificate fingerprint
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+  community.openwrt.command:
+    cmd: openssl s_client -connect 127.0.0.1:8443 -servername {{ flint2_fqdn | quote }} </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256
+    uses_shell: true
+  register: flint2_verify_tls_uhttpd_served
+  changed_when: false
+
+- name: Assert uHTTPd serves the installed certificate on port 8443
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_tls_uhttpd_served.stdout | length > 0
+      - flint2_verify_tls_uhttpd_served.stdout == flint2_verify_tls_uhttpd_expected.stdout
+    fail_msg: >-
+      uHTTPd TLS fingerprint mismatch on port 8443
+      (expected {{ flint2_verify_tls_uhttpd_expected.stdout | default('missing') }},
+      served {{ flint2_verify_tls_uhttpd_served.stdout | default('missing') }})
+
+- name: Verify GL.iNet UI TLS endpoint from control node
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+    - flint2_tls_verify_from_client | default(true) | bool
+  delegate_to: localhost
+  become: false
+  vars:
+    flint2_tls_expected_cert: "{{ flint2_env_dir }}/{{ flint2_tls_leaf_cert }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    host={{ flint2_tls_verify_host | quote }}
+    port=443
+    expected={{ flint2_tls_expected_cert | quote }}
+    fqdn={{ flint2_fqdn | quote }}
+    fp() { openssl x509 -noout -fingerprint -sha256 | awk -F= '{print $2}' | tr -d ': ' | tr A-Z a-z; }
+    remote_pem=$(openssl s_client -connect "${host}:${port}" -servername "${host}" </dev/null 2>/dev/null)
+    test -n "${remote_pem}"
+    remote_fp=$(printf '%s\n' "$remote_pem" | fp)
+    local_fp=$(openssl x509 -in "${expected}" -noout -fingerprint -sha256 | awk -F= '{print $2}' | tr -d ': ' | tr A-Z a-z)
+    test -n "$remote_fp"
+    test "$remote_fp" = "$local_fp"
+    printf '%s\n' "$remote_pem" | openssl x509 -noout -checkend 0
+    printf '%s\n' "$remote_pem" | openssl x509 -noout -ext subjectAltName | grep -Fq "$fqdn"
+  args:
+    executable: /bin/bash
+  register: flint2_verify_tls_443
+  changed_when: false
+
+- name: Verify LuCI TLS endpoint from control node
+  when:
+    - flint2_tls_enabled | bool
+    - flint2_tls_verify_endpoints | bool
+    - flint2_tls_verify_from_client | default(true) | bool
+  delegate_to: localhost
+  become: false
+  vars:
+    flint2_tls_expected_cert: "{{ flint2_env_dir }}/{{ flint2_tls_leaf_cert }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    host={{ flint2_tls_verify_host | quote }}
+    port=8443
+    expected={{ flint2_tls_expected_cert | quote }}
+    fqdn={{ flint2_fqdn | quote }}
+    fp() { openssl x509 -noout -fingerprint -sha256 | awk -F= '{print $2}' | tr -d ': ' | tr A-Z a-z; }
+    remote_pem=$(openssl s_client -connect "${host}:${port}" -servername "${host}" </dev/null 2>/dev/null)
+    test -n "${remote_pem}"
+    remote_fp=$(printf '%s\n' "$remote_pem" | fp)
+    local_fp=$(openssl x509 -in "${expected}" -noout -fingerprint -sha256 | awk -F= '{print $2}' | tr -d ': ' | tr A-Z a-z)
+    test -n "$remote_fp"
+    test "$remote_fp" = "$local_fp"
+    printf '%s\n' "$remote_pem" | openssl x509 -noout -checkend 0
+    printf '%s\n' "$remote_pem" | openssl x509 -noout -ext subjectAltName | grep -Fq "$fqdn"
+  args:
+    executable: /bin/bash
+  register: flint2_verify_tls_8443
+  changed_when: false

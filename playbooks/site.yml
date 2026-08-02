@@ -12,6 +12,6 @@
       tags: [always, facts]
 
     - name: Apply Flint 2 configuration
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: flint2
-      tags: [config]
+      tags: [always]
