@@ -86,7 +86,9 @@ argument_specs:
                 description: Radio band (2g or 5g).
               htmode:
                 type: str
-                description: Channel width / Wi-Fi generation mode.
+                description: >-
+                  Channel width / Wi-Fi generation mode (for example HE40 for 2.4 GHz
+                  20/40 MHz, HE160 for 5 GHz 160 MHz).
               hwmode:
                 type: str
                 description: Legacy hardware mode when applicable.
@@ -95,7 +97,10 @@ argument_specs:
                 description: Whether legacy rates are enabled.
               require_mode:
                 type: str
-                description: Minimum client mode requirement.
+                description: >-
+                  Minimum client PHY mode (UCI wireless device option). On 2.4 GHz,
+                  n maps to GL.iNet 11n/ax; on 5 GHz, n maps to 11n/ac/ax (use ac for
+                  11ac/ax-only).
       flint2_wireless_guest_ifaces:
         type: list
         elements: str

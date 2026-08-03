@@ -54,12 +54,16 @@ flint2_wireless:
   encryption: sae-mixed
   key: "{{ vault_flint2_wireless_key | default('') }}"
   radios:
+    # GL.iNet Mode 11n/ax — 20/40 MHz (UCI htmode HE40); require_mode n excludes 802.11g-only clients
     - device: mt798611
       iface: wifi2g
       band: 2g
-      htmode: HE20
+      htmode: HE40
       hwmode: 11g
       legacy_rates: "0"
+      require_mode: n
+    # GL.iNet Mode 11n/ac/ax — 160 MHz; require_mode n allows 802.11n/ac/ax clients
+    # (use require_mode ac for 11ac/ax-only, which excludes 802.11n-only clients)
     - device: mt798612
       iface: wifi5g
       band: 5g
