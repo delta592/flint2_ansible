@@ -20,6 +20,11 @@
         name: flint2
         tasks_from: system.yml
 
+    - name: Configure Flint 2 NTP time synchronization
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: ntp.yml
+
     - name: Configure Flint 2 wireless networks
       ansible.builtin.import_role:
         name: flint2
