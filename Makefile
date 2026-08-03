@@ -176,6 +176,11 @@ system: install
 wireless: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags wireless
 
+## Configure GL.iNet Access Control settings only
+.PHONY: access-control
+access-control: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags access_control
+
 ## Install TLS certificates on nginx and uHTTPd
 .PHONY: tls
 tls: install

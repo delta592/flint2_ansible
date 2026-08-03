@@ -8,6 +8,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 
 - **System** — hostname and AP-mode settings validated against live device state
 - **Wireless** — 2.4 GHz and 5 GHz SSIDs via MTK UCI sections (`mt798611`/`wifi2g`, `mt798612`/`wifi5g`)
+- **Access Control** — GL.iNet admin panel, LuCI, and SSH ports, Force HTTPS, and auto-logout
 - **TLS** — private CA certificates on nginx (GL.iNet UI, port 443) and uHTTPd (LuCI, port 8443)
 - **SSH** — Dropbear hardening (password auth off) and `authorized_keys` management
 - **Verify** — post-apply checks for hostname, wireless, guest/IoT disabled state, and TLS fingerprints
@@ -155,6 +156,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `packages` | `packages.yml` | Optional package install/remove |
 | `system` | `system.yml` | Hostname and system settings |
 | `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
+| `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
 | `tls` | `tls.yml` | Certificate deployment |
 | `ssh` | `ssh.yml` | Dropbear and authorized keys |
 | `verify` | `verify.yml` | Post-apply validation |
