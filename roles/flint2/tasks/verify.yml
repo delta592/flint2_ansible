@@ -13,6 +13,70 @@
       - flint2_verify_hostname.result == flint2_hostname
     fail_msg: "Hostname is '{{ flint2_verify_hostname.result }}', expected '{{ flint2_hostname }}'"
 
+- name: Detect NTP configuration backend
+  when: flint2_ntp_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      if [ -f /etc/config/chrony ] && [ -x /etc/init.d/chronyd ]; then
+        echo chrony
+      elif uci -q get system.ntp >/dev/null 2>&1; then
+        echo sysntpd
+      else
+        echo unsupported
+      fi
+    uses_shell: true
+  register: flint2_verify_ntp_backend
+  changed_when: false
+
+- name: Read configured chrony upstream pool
+  when:
+    - flint2_ntp_enabled | default(true) | bool
+    - flint2_verify_ntp_backend.stdout == 'chrony'
+  community.openwrt.uci:
+    command: get
+    key: chrony.flint2.hostname
+  register: flint2_verify_chrony_hostname
+  changed_when: false
+
+- name: Assert chrony upstream pool matches desired value
+  when:
+    - flint2_ntp_enabled | default(true) | bool
+    - flint2_verify_ntp_backend.stdout == 'chrony'
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_chrony_hostname.result == flint2_ntp.servers[0]
+    fail_msg: >-
+      chrony.flint2.hostname is '{{ flint2_verify_chrony_hostname.result }}',
+      expected '{{ flint2_ntp.servers[0] }}'
+
+- name: Read configured sysntpd upstream servers
+  when:
+    - flint2_ntp_enabled | default(true) | bool
+    - flint2_verify_ntp_backend.stdout == 'sysntpd'
+  community.openwrt.uci:
+    command: get
+    key: system.ntp.server
+  register: flint2_verify_sysntpd_servers
+  changed_when: false
+
+- name: Assert sysntpd upstream servers match desired values
+  when:
+    - flint2_ntp_enabled | default(true) | bool
+    - flint2_verify_ntp_backend.stdout == 'sysntpd'
+  vars:
+    flint2_verify_sysntpd_server_list: >-
+      {{
+        [flint2_verify_sysntpd_servers.result]
+        if flint2_verify_sysntpd_servers.result is string
+        else flint2_verify_sysntpd_servers.result | default([])
+      }}
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_sysntpd_server_list | sort == flint2_ntp.servers | sort
+    fail_msg: >-
+      system.ntp.server is '{{ flint2_verify_sysntpd_servers.result | default([]) }}',
+      expected '{{ flint2_ntp.servers }}'
+
 - name: Read GL.iNet network mode
   when:
     - flint2_verify_glinet_settings | default(true) | bool
