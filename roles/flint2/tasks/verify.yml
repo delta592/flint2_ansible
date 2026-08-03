@@ -68,6 +68,30 @@
   loop_control:
     label: "{{ item.item.iface }}"
 
+- name: Read configured wireless radio device settings
+  community.openwrt.uci:
+    command: get
+    key: "wireless.{{ item.0.device }}.{{ item.1 }}"
+  loop: "{{ flint2_wireless.radios | default([]) | product(flint2_wireless_device_option_keys | default([])) | list }}"
+  loop_control:
+    label: "{{ item.0.device }}.{{ item.1 }}"
+  when: item.0[item.1] is defined
+  register: flint2_verify_radio_options
+  changed_when: false
+
+- name: Assert wireless radio device settings match desired values
+  when:
+    - flint2_verify_radio_options.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == item.item.0[item.item.1]
+    fail_msg: >-
+      wireless.{{ item.item.0.device }}.{{ item.item.1 }} is '{{ item.result }}',
+      expected '{{ item.item.0[item.item.1] }}'
+  loop: "{{ flint2_verify_radio_options.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ item.item.0.device }}.{{ item.item.1 }}"
+
 - name: Read guest and IoT wireless interface disabled state
   when: flint2_wireless_guest_ifaces | default([]) | length > 0
   community.openwrt.uci:
