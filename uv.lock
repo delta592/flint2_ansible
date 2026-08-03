@@ -460,22 +460,22 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ansible-core", specifier = ">=2.18,<2.22" }]
+requires-dist = [{ name = "ansible-core", specifier = "==2.21.2" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "ansible-builder", specifier = ">=3.0.0" },
-    { name = "ansible-lint", specifier = ">=25.0.0" },
-    { name = "ansible-navigator", specifier = ">=25.0.0" },
-    { name = "docker", specifier = ">=7.0.0" },
-    { name = "molecule", specifier = ">=25.0.0" },
-    { name = "pre-commit", specifier = ">=4.0.0" },
-    { name = "pytest", specifier = ">=8.0.0" },
-    { name = "pytest-cov", specifier = ">=6.0.0" },
-    { name = "requests", specifier = ">=2.32.0" },
-    { name = "tox", specifier = ">=4.2" },
-    { name = "tox-ansible", specifier = ">=25.0.0" },
-    { name = "yamllint", specifier = ">=1.35.0" },
+    { name = "ansible-builder", specifier = "==3.1.1" },
+    { name = "ansible-lint", specifier = "==26.6.0" },
+    { name = "ansible-navigator", specifier = "==26.6.0" },
+    { name = "docker", specifier = "==7.2.0" },
+    { name = "molecule", specifier = "==26.6.0" },
+    { name = "pre-commit", specifier = "==4.6.1" },
+    { name = "pytest", specifier = "==9.1.1" },
+    { name = "pytest-cov", specifier = "==7.1.0" },
+    { name = "requests", specifier = "==2.34.2" },
+    { name = "tox", specifier = "==4.58.0" },
+    { name = "tox-ansible", specifier = "==26.7.1" },
+    { name = "yamllint", specifier = "==1.38.0" },
 ]
 
 [[package]]
