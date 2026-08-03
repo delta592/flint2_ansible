@@ -256,3 +256,38 @@ argument_specs:
               port:
                 type: int
                 description: dropbear.main.Port SSH listen port.
+      flint2_ntp_enabled:
+        type: bool
+        default: true
+        description: Apply and verify NTP time synchronization settings when true.
+      flint2_ntp:
+        type: dict
+        description: Upstream NTP server settings for chronyd (GL.iNet 4.8.4+) or sysntpd.
+        options:
+          servers:
+            type: list
+            elements: str
+            default:
+              - pool.ntp.org
+            description: Upstream NTP pool or server hostnames.
+          use_dhcp:
+            type: str
+            default: "0"
+            choices:
+              - "0"
+              - "1"
+            description: system.ntp.use_dhcp for sysntpd; ignored on chronyd.
+          iburst:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: chrony.flint2.iburst setting for faster initial sync.
+          enable_server:
+            type: str
+            default: "0"
+            choices:
+              - "0"
+              - "1"
+            description: system.ntp.enable_server for sysntpd LAN time serving.

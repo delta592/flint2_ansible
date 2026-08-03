@@ -63,5 +63,13 @@ flint2_access_control:
     enabled: "1"
     port: 22
 
+flint2_ntp_enabled: true
+flint2_ntp:
+  servers:
+    - pool.ntp.org
+  use_dhcp: "0"
+  iburst: "1"
+  enable_server: "0"
+
 # Set false when verifying against vanilla OpenWrt (for example Molecule containers).
 flint2_verify_glinet_settings: true

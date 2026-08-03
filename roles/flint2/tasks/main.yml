@@ -13,6 +13,13 @@
       tags: [system]
   tags: [system]
 
+- name: Configure Flint 2 NTP time synchronization
+  ansible.builtin.include_tasks:
+    file: ntp.yml
+    apply:
+      tags: [ntp]
+  tags: [ntp]
+
 - name: Configure Flint 2 wireless networks
   ansible.builtin.include_tasks:
     file: wireless.yml

@@ -20,3 +20,13 @@
   community.openwrt.command:
     cmd: /etc/init.d/uhttpd restart
     uses_shell: true
+
+- name: Restart time synchronization
+  community.openwrt.command:
+    cmd: |
+      if [ -x /etc/init.d/chronyd ]; then
+        /etc/init.d/chronyd restart
+      elif [ -x /etc/init.d/sysntpd ]; then
+        /etc/init.d/sysntpd restart
+      fi
+    uses_shell: true

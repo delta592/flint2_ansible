@@ -1,0 +1,95 @@
+---
+- name: Configure NTP time servers
+  when: flint2_ntp_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      use_dhcp="{{ flint2_ntp.use_dhcp | default('0') }}"
+      iburst="{{ flint2_ntp.iburst | default('1') }}"
+      servers="{{ flint2_ntp.servers | join(' ') }}"
+      primary="{{ flint2_ntp.servers[0] }}"
+
+      configure_chrony() {
+        if uci -q get chrony.@pool[0].hostname >/dev/null 2>&1; then
+          cur_disabled="$(uci -q get chrony.@pool[0].disabled 2>/dev/null || echo 0)"
+          if [ "$cur_disabled" != "1" ]; then
+            uci set chrony.@pool[0].disabled='1'
+            changed=1
+          fi
+        fi
+
+        if uci -q get chrony.@dhcp_ntp_server[0] >/dev/null 2>&1; then
+          cur_disabled="$(uci -q get chrony.@dhcp_ntp_server[0].disabled 2>/dev/null || echo 0)"
+          if [ "$cur_disabled" != "1" ]; then
+            uci set chrony.@dhcp_ntp_server[0].disabled='1'
+            changed=1
+          fi
+        fi
+
+        if ! uci -q get chrony.flint2 >/dev/null 2>&1; then
+          uci set chrony.flint2=pool
+          changed=1
+        fi
+
+        got_hostname="$(uci -q get chrony.flint2.hostname 2>/dev/null || true)"
+        got_iburst="$(uci -q get chrony.flint2.iburst 2>/dev/null || echo 0)"
+        got_disabled="$(uci -q get chrony.flint2.disabled 2>/dev/null || echo 0)"
+        if [ "$got_hostname" != "$primary" ] || [ "$got_iburst" != "$iburst" ] || [ "$got_disabled" != "0" ]; then
+          uci set chrony.flint2.hostname="$primary"
+          uci set chrony.flint2.iburst="$iburst"
+          uci set chrony.flint2.disabled='0'
+          changed=1
+        fi
+      }
+
+      configure_sysntpd() {
+        got="$(uci -q get system.ntp.server 2>/dev/null | xargs || true)"
+        if [ "$got" != "$servers" ]; then
+          while uci -q delete system.ntp.server 2>/dev/null; do :; done
+          for server in $servers; do
+            uci add_list system.ntp.server="$server"
+          done
+          changed=1
+        fi
+
+        for option in enabled use_dhcp; do
+          case "$option" in
+            enabled) want_val="1" ;;
+            use_dhcp) want_val="$use_dhcp" ;;
+          esac
+          got_val="$(uci -q get system.ntp."$option" 2>/dev/null || true)"
+          if [ "$got_val" != "$want_val" ]; then
+            uci set system.ntp."$option"="$want_val"
+            changed=1
+          fi
+        done
+
+        if uci -q get system.ntp.enable_server >/dev/null 2>&1; then
+          got_server="$(uci -q get system.ntp.enable_server 2>/dev/null || echo 0)"
+          want_server="{{ flint2_ntp.enable_server | default('0') }}"
+          if [ "$got_server" != "$want_server" ]; then
+            uci set system.ntp.enable_server="$want_server"
+            changed=1
+          fi
+        fi
+      }
+
+      if [ -f /etc/config/chrony ] && [ -x /etc/init.d/chronyd ]; then
+        configure_chrony
+      elif uci -q get system.ntp >/dev/null 2>&1; then
+        configure_sysntpd
+      else
+        echo "No supported NTP configuration found" >&2
+        exit 1
+      fi
+
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      fi
+    uses_shell: true
+  register: flint2_ntp_config
+  changed_when: flint2_ntp_config.stdout is search('changed')
+  notify:
+    - Commit UCI changes
+    - Restart time synchronization

@@ -116,6 +116,15 @@ flint2_access_control:
     enabled: "1"
     port: 22
 
+# GL.iNet UI → System → Time Zone; upstream NTP via chronyd (firmware 4.8.4+)
+flint2_ntp_enabled: true
+flint2_ntp:
+  servers:
+    - pool.ntp.org
+  use_dhcp: "0"
+  iburst: "1"
+  enable_server: "0"
+
 flint2_ssh_authorized_keys:
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519.pub') }}"
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519_v002.pub') }}"
