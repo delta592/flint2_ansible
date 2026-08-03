@@ -26,12 +26,15 @@ flint2_wireless:
   encryption: sae-mixed
   key: molecule-test-key
   radios:
+    # GL.iNet Mode 11n/ax (require_mode n)
     - device: mt798611
       iface: wifi2g
       band: 2g
-      htmode: HE20
+      htmode: HE40
       hwmode: 11g
       legacy_rates: "0"
+      require_mode: n
+    # GL.iNet Mode 11n/ac/ax (require_mode n)
     - device: mt798612
       iface: wifi5g
       band: 5g
