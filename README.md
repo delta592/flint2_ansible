@@ -101,7 +101,7 @@ If Colima was previously started without Rosetta, stop it first (`colima stop`) 
 
 When Colima is running, Make automatically sets `DOCKER_HOST` to `unix://$HOME/.colima/default/docker.sock`. Molecule pulls OpenWrt images with `platform: linux/amd64`. To use a different runtime, set `DOCKER_HOST` yourself before running Molecule.
 
-The Molecule scenario seeds synthetic MTK-style wireless UCI sections, then applies and verifies the `packages`, `system`, `wireless`, and `ssh` task files. TLS and GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
+The Molecule scenario seeds synthetic MTK-style wireless UCI sections, then applies and verifies the `packages`, `system`, `ntp`, `wireless`, and `ssh` task files. TLS and GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
@@ -155,6 +155,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | --- | --- | --- |
 | `packages` | `packages.yml` | Optional package install/remove |
 | `system` | `system.yml` | Hostname and system settings |
+| `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org`) |
 | `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
 | `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
 | `tls` | `tls.yml` | Certificate deployment |

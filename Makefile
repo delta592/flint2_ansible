@@ -171,6 +171,11 @@ check: install
 system: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags system
 
+## Configure NTP time synchronization only
+.PHONY: ntp
+ntp: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags ntp
+
 ## Configure wireless networks only
 .PHONY: wireless
 wireless: install
