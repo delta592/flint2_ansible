@@ -70,6 +70,9 @@ Common validation targets:
 
 | Target | Purpose |
 | --- | --- |
+| `make setup` | Install Python dev dependencies from `uv.lock` |
+| `make lock` | Regenerate `uv.lock` from `pyproject.toml` |
+| `make deps-update` | Upgrade dependencies, refresh `uv.lock`, and sync `.venv` |
 | `make lint` | ansible-lint and yamllint |
 | `make syntax` | `ansible-playbook --syntax-check` |
 | `make check` | Dry-run site playbook with diffs |

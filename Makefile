@@ -50,6 +50,17 @@ help:
 setup:
 	$(UV) sync --group dev
 
+## Refresh uv.lock from pyproject.toml (no version upgrades)
+.PHONY: lock
+lock:
+	$(UV) lock
+
+## Upgrade Python dependencies, refresh uv.lock, and sync the virtualenv
+.PHONY: deps-update
+deps-update:
+	$(UV) lock --upgrade
+	$(UV) sync --group dev
+
 ## Install Ansible collections from requirements.yml
 .PHONY: install
 install: setup
