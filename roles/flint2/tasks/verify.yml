@@ -47,6 +47,199 @@
       - flint2_verify_lan_proto.result == flint2_lan_proto
     fail_msg: "network.lan.proto is '{{ flint2_verify_lan_proto.result }}', expected '{{ flint2_lan_proto }}'"
 
+- name: Read GL.iNet admin panel Force HTTPS setting
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.admin.redirect_https is defined
+  community.openwrt.uci:
+    command: get
+    key: oui-httpd.main.redirect_https
+  register: flint2_verify_admin_redirect_https
+  changed_when: false
+
+- name: Assert GL.iNet admin panel Force HTTPS matches desired value
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.admin.redirect_https is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_admin_redirect_https.result == flint2_access_control.admin.redirect_https
+    fail_msg: >-
+      oui-httpd.main.redirect_https is '{{ flint2_verify_admin_redirect_https.result }}',
+      expected '{{ flint2_access_control.admin.redirect_https }}'
+
+- name: Read GL.iNet admin panel auto-logout timeout
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.admin.session_timeout_minutes is defined
+  community.openwrt.uci:
+    command: get
+    key: oui-httpd.main.session_timeout
+  register: flint2_verify_admin_session_timeout
+  changed_when: false
+
+- name: Assert GL.iNet admin panel auto-logout timeout matches desired value
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.admin.session_timeout_minutes is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_admin_session_timeout.result | int == flint2_access_control.admin.session_timeout_minutes | int * 60
+    fail_msg: >-
+      oui-httpd.main.session_timeout is '{{ flint2_verify_admin_session_timeout.result }}',
+      expected '{{ flint2_access_control.admin.session_timeout_minutes | int * 60 }}'
+
+- name: Read GL.iNet admin panel nginx listen ports
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.admin.http_port is defined
+    - flint2_access_control.admin.https_port is defined
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      conf="{{ flint2_nginx_gl_conf | quote }}"
+      grep -E '^[[:space:]]*listen [0-9]+;' "$conf" | head -1 | grep -oE '[0-9]+'
+      grep -E '^[[:space:]]*listen [0-9]+ ssl;' "$conf" | head -1 | grep -oE '[0-9]+'
+    uses_shell: true
+  register: flint2_verify_admin_panel_ports
+  changed_when: false
+
+- name: Assert GL.iNet admin panel nginx listen ports match desired values
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.admin.http_port is defined
+    - flint2_access_control.admin.https_port is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_admin_panel_ports.stdout_lines[0] | int == flint2_access_control.admin.http_port | int
+      - flint2_verify_admin_panel_ports.stdout_lines[1] | int == flint2_access_control.admin.https_port | int
+    fail_msg: >-
+      nginx admin panel ports are {{ flint2_verify_admin_panel_ports.stdout_lines | join('/') }},
+      expected {{ flint2_access_control.admin.http_port }}/{{ flint2_access_control.admin.https_port }}
+
+- name: Read LuCI Force HTTPS redirect setting
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.redirect_https is defined
+  community.openwrt.uci:
+    command: get
+    key: uhttpd.main.redirect_https
+  register: flint2_verify_luci_redirect_https
+  changed_when: false
+
+- name: Assert LuCI Force HTTPS redirect matches desired value
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.redirect_https is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_luci_redirect_https.result == flint2_access_control.luci.redirect_https
+    fail_msg: >-
+      uhttpd.main.redirect_https is '{{ flint2_verify_luci_redirect_https.result }}',
+      expected '{{ flint2_access_control.luci.redirect_https }}'
+
+- name: Read LuCI HTTP listen addresses
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.http_port is defined
+  community.openwrt.uci:
+    command: get
+    key: uhttpd.main.listen_http
+  register: flint2_verify_luci_listen_http
+  changed_when: false
+
+- name: Assert LuCI HTTP listen addresses match desired port
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.http_port is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_luci_listen_http.result is contains('0.0.0.0:' ~ flint2_access_control.luci.http_port)
+      - flint2_verify_luci_listen_http.result is contains('[::]:' ~ flint2_access_control.luci.http_port)
+    fail_msg: >-
+      uhttpd.main.listen_http is '{{ flint2_verify_luci_listen_http.result }}',
+      expected 0.0.0.0:{{ flint2_access_control.luci.http_port }} and [::]:{{ flint2_access_control.luci.http_port }}
+
+- name: Read LuCI HTTPS listen addresses
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.https_port is defined
+  community.openwrt.uci:
+    command: get
+    key: uhttpd.main.listen_https
+  register: flint2_verify_luci_listen_https
+  changed_when: false
+
+- name: Assert LuCI HTTPS listen addresses match desired port
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.https_port is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_luci_listen_https.result is contains('0.0.0.0:' ~ flint2_access_control.luci.https_port)
+      - flint2_verify_luci_listen_https.result is contains('[::]:' ~ flint2_access_control.luci.https_port)
+    fail_msg: >-
+      uhttpd.main.listen_https is '{{ flint2_verify_luci_listen_https.result }}',
+      expected 0.0.0.0:{{ flint2_access_control.luci.https_port }} and [::]:{{ flint2_access_control.luci.https_port }}
+
+- name: Read Dropbear SSH enablement
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.ssh.enabled is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.enable
+  register: flint2_verify_dropbear_enable
+  changed_when: false
+
+- name: Assert Dropbear SSH enablement matches desired value
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.ssh.enabled is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_enable.result == flint2_access_control.ssh.enabled
+    fail_msg: >-
+      dropbear.main.enable is '{{ flint2_verify_dropbear_enable.result }}',
+      expected '{{ flint2_access_control.ssh.enabled }}'
+
+- name: Read Dropbear SSH port
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.ssh.port is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.Port
+  register: flint2_verify_dropbear_port
+  changed_when: false
+
+- name: Assert Dropbear SSH port matches desired value
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.ssh.port is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_port.result | int == flint2_access_control.ssh.port | int
+    fail_msg: >-
+      dropbear.main.Port is '{{ flint2_verify_dropbear_port.result }}',
+      expected '{{ flint2_access_control.ssh.port }}'
+
 - name: Read configured wireless SSIDs on main AP interfaces
   when: flint2_wireless.ssid is defined
   community.openwrt.uci:
