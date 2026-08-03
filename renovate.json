@@ -34,6 +34,39 @@
                 "requires-python"
             ],
             "rangeStrategy": "replace"
+        },
+        {
+            "description": "Group Ansible Galaxy collection non-major updates",
+            "matchManagers": [
+                "ansible-galaxy"
+            ],
+            "matchDepTypes": [
+                "galaxy-collection"
+            ],
+            "matchUpdateTypes": [
+                "minor",
+                "patch"
+            ],
+            "groupName": "Ansible Galaxy collections (non-major)",
+            "labels": [
+                "ansible"
+            ]
+        },
+        {
+            "description": "Require Dependency Dashboard approval for major Ansible Galaxy collection updates",
+            "matchManagers": [
+                "ansible-galaxy"
+            ],
+            "matchDepTypes": [
+                "galaxy-collection"
+            ],
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "labels": [
+                "ansible"
+            ],
+            "dependencyDashboardApproval": true
         }
     ]
 }
