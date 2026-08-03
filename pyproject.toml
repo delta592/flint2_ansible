@@ -3,7 +3,7 @@ name = "flint2-ansible"
 version = "1.0.0"
 description = "Development tooling for GL.iNet Flint 2 Ansible automation"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14,<3.15"
 dependencies = [
     "ansible-core>=2.18,<2.22",
 ]

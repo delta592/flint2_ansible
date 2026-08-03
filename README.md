@@ -20,7 +20,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 | Ansible core | 2.18+ |
 | `community.openwrt` collection | >= 1.6.0 |
 | `community.docker` collection | >= 3.0.0 (Molecule tests) |
-| Python | 3.11+ |
+| Python | 3.14.x |
 | [uv](https://docs.astral.sh/uv/) | Python environment and dev dependencies |
 | Docker | Molecule integration tests ([Colima](https://github.com/abiosoft/colima) supported) |
 | SSH access | `root` key-based login to the router |
