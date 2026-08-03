@@ -16,8 +16,9 @@ This guide documents the successful setup performed on August 1, 2026, beginning
 | Uplink port | Dedicated WAN / WAN1 |
 | Uplink speed | 2.5GbE |
 | Main SSID | `ARGUS` |
-| 2.4 GHz mode | `11g/n/ax` |
-| 5 GHz mode | `11ac/ax` |
+| 2.4 GHz mode | `11n/ax` |
+| 2.4 GHz channel width | 20/40 MHz |
+| 5 GHz mode | `11n/ac/ax` |
 | 5 GHz channel width | 160 MHz |
 | Security | WPA2-PSK/WPA3-SAE mixed mode |
 | GL.iNet UI | `https://wapap1003.federation.lcars/` |
@@ -345,12 +346,12 @@ Use:
 
 ```text
 SSID: ARGUS
-Mode: 11g/n/ax
-Channel width: 20 MHz
+Mode: 11n/ax
+Channel width: 20/40 MHz
 Security: WPA2-PSK/WPA3-SAE mixed mode
 ```
 
-`11g/n/ax` was selected to retain compatibility with the ecobee while avoiding obsolete 802.11b rates.
+`11n/ax` was selected to retain compatibility with the ecobee while avoiding obsolete 802.11b / 802.11g rates.
 
 ### 5 GHz settings
 
@@ -358,12 +359,12 @@ Use:
 
 ```text
 SSID: ARGUS
-Mode: 11ac/ax
+Mode: 11n/ac/ax
 Bandwidth: 160 MHz
 Security: WPA2-PSK/WPA3-SAE mixed mode
 ```
 
-`11ac/ax` excludes older 802.11a and 802.11n-only clients while retaining Wi-Fi 5 and Wi-Fi 6 support.
+`11n/ac/ax` excludes older 802.11a clients while retaining Wi-Fi 5 and Wi-Fi 6 support.
 
 ### 160 MHz versus 80 MHz
 
