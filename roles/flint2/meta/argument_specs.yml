@@ -196,3 +196,63 @@ argument_specs:
         type: bool
         default: true
         description: Validate GL.iNet-specific UCI settings such as glconfig.general.mode.
+      flint2_access_control_enabled:
+        type: bool
+        default: true
+        description: Apply and verify GL.iNet Access Control settings when true.
+      flint2_nginx_gl_conf:
+        type: path
+        default: /etc/nginx/conf.d/gl.conf
+        description: nginx configuration file containing GL.iNet admin panel listen directives.
+      flint2_access_control:
+        type: dict
+        description: GL.iNet Access Control page settings for admin panel, LuCI, and SSH.
+        options:
+          admin:
+            type: dict
+            description: GL.iNet admin panel ports, Force HTTPS, and auto-logout settings.
+            options:
+              http_port:
+                type: int
+                description: Admin panel HTTP port written to nginx gl.conf.
+              https_port:
+                type: int
+                description: Admin panel HTTPS port written to nginx gl.conf.
+              redirect_https:
+                type: str
+                choices:
+                  - "0"
+                  - "1"
+                description: oui-httpd.main.redirect_https Force HTTPS setting.
+              session_timeout_minutes:
+                type: int
+                description: Admin auto-logout interval in minutes (stored as seconds in oui-httpd.main.session_timeout).
+          luci:
+            type: dict
+            description: LuCI uHTTPd listener and Force HTTPS settings.
+            options:
+              http_port:
+                type: int
+                description: LuCI HTTP port (uhttpd.main.listen_http).
+              https_port:
+                type: int
+                description: LuCI HTTPS port (uhttpd.main.listen_https).
+              redirect_https:
+                type: str
+                choices:
+                  - "0"
+                  - "1"
+                description: uhttpd.main.redirect_https Force HTTPS setting.
+          ssh:
+            type: dict
+            description: Dropbear SSH enablement and port settings.
+            options:
+              enabled:
+                type: str
+                choices:
+                  - "0"
+                  - "1"
+                description: dropbear.main.enable SSH service toggle.
+              port:
+                type: int
+                description: dropbear.main.Port SSH listen port.

@@ -47,5 +47,21 @@ flint2_dropbear_password_auth: "off"
 flint2_dropbear_root_password_auth: "off"
 flint2_ssh_require_authorized_keys: true
 
+flint2_access_control_enabled: true
+flint2_nginx_gl_conf: /etc/nginx/conf.d/gl.conf
+flint2_access_control:
+  admin:
+    http_port: 80
+    https_port: 443
+    redirect_https: "1"
+    session_timeout_minutes: 180
+  luci:
+    http_port: 8080
+    https_port: 8443
+    redirect_https: "1"
+  ssh:
+    enabled: "1"
+    port: 22
+
 # Set false when verifying against vanilla OpenWrt (for example Molecule containers).
 flint2_verify_glinet_settings: true

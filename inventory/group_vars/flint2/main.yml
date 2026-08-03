@@ -99,6 +99,23 @@ flint2_tls_verify_endpoints: true
 flint2_tls_verify_from_client: true
 flint2_tls_verify_host: "{{ flint2_fqdn }}"
 
+# GL.iNet UI → System → Access Control (live values on wapap1003, 2026-08-02)
+flint2_access_control_enabled: true
+flint2_nginx_gl_conf: /etc/nginx/conf.d/gl.conf
+flint2_access_control:
+  admin:
+    http_port: 80
+    https_port: 443
+    redirect_https: "1"
+    session_timeout_minutes: 180
+  luci:
+    http_port: 8080
+    https_port: 8443
+    redirect_https: "1"
+  ssh:
+    enabled: "1"
+    port: 22
+
 flint2_ssh_authorized_keys:
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519.pub') }}"
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519_v002.pub') }}"

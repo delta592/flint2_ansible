@@ -27,6 +27,13 @@
       tags: [tls]
   tags: [tls]
 
+- name: Configure Flint 2 local access control
+  ansible.builtin.include_tasks:
+    file: access_control.yml
+    apply:
+      tags: [access_control]
+  tags: [access_control]
+
 - name: Configure Flint 2 SSH access
   ansible.builtin.include_tasks:
     file: ssh.yml

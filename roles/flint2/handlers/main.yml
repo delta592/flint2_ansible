@@ -10,3 +10,13 @@
   community.openwrt.command:
     cmd: /etc/init.d/dropbear restart
     uses_shell: true
+
+- name: Restart nginx
+  community.openwrt.command:
+    cmd: /etc/init.d/nginx restart
+    uses_shell: true
+
+- name: Restart uhttpd
+  community.openwrt.command:
+    cmd: /etc/init.d/uhttpd restart
+    uses_shell: true

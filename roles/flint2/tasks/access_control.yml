@@ -1,0 +1,124 @@
+---
+- name: Configure GL.iNet admin panel Force HTTPS
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_access_control.admin.redirect_https is defined
+  community.openwrt.uci:
+    command: set
+    key: oui-httpd.main.redirect_https
+    value: "{{ flint2_access_control.admin.redirect_https }}"
+  notify:
+    - Commit UCI changes
+    - Restart nginx
+
+- name: Configure GL.iNet admin panel auto-logout timeout
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_access_control.admin.session_timeout_minutes is defined
+  community.openwrt.uci:
+    command: set
+    key: oui-httpd.main.session_timeout
+    value: "{{ flint2_access_control.admin.session_timeout_minutes | int * 60 }}"
+  notify:
+    - Commit UCI changes
+    - Restart nginx
+
+- name: Configure GL.iNet admin panel HTTP and HTTPS ports
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_access_control.admin.http_port is defined
+    - flint2_access_control.admin.https_port is defined
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      conf="{{ flint2_nginx_gl_conf | quote }}"
+      http_port="{{ flint2_access_control.admin.http_port }}"
+      https_port="{{ flint2_access_control.admin.https_port }}"
+      cur_http="$(grep -E '^[[:space:]]*listen [0-9]+;' "$conf" | head -1 | grep -oE '[0-9]+' || true)"
+      cur_https="$(grep -E '^[[:space:]]*listen [0-9]+ ssl;' "$conf" | head -1 | grep -oE '[0-9]+' || true)"
+      if [ "$cur_http" = "$http_port" ] && [ "$cur_https" = "$https_port" ]; then
+        exit 0
+      fi
+      sed -i "s/^\([[:space:]]*listen \)[0-9]\+;/\1${http_port};/" "$conf"
+      sed -i "s/^\([[:space:]]*listen \[::\]:\)[0-9]\+;/\1${http_port};/" "$conf"
+      sed -i "s/^\([[:space:]]*listen \)[0-9]\+\([[:space:]]\+ssl;\)/\1${https_port}\2/" "$conf"
+      sed -i "s/^\([[:space:]]*listen \[::\]:\)[0-9]\+\([[:space:]]\+ssl;\)/\1${https_port}\2/" "$conf"
+      echo changed
+    uses_shell: true
+  register: flint2_admin_panel_ports
+  changed_when: flint2_admin_panel_ports.stdout is search('changed')
+  notify:
+    - Restart nginx
+
+- name: Configure LuCI Force HTTPS redirect
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_access_control.luci.redirect_https is defined
+  community.openwrt.uci:
+    command: set
+    key: uhttpd.main.redirect_https
+    value: "{{ flint2_access_control.luci.redirect_https }}"
+  notify:
+    - Commit UCI changes
+    - Restart uhttpd
+
+- name: Configure LuCI HTTP and HTTPS listen ports
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_access_control.luci.http_port is defined
+    - flint2_access_control.luci.https_port is defined
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      http_port="{{ flint2_access_control.luci.http_port }}"
+      https_port="{{ flint2_access_control.luci.https_port }}"
+      want_http="0.0.0.0:${http_port} [::]:${http_port}"
+      want_https="0.0.0.0:${https_port} [::]:${https_port}"
+      got_http="$(uci -q get uhttpd.main.listen_http 2>/dev/null | xargs || true)"
+      got_https="$(uci -q get uhttpd.main.listen_https 2>/dev/null | xargs || true)"
+      changed=0
+      if [ "$got_http" != "$want_http" ]; then
+        while uci -q delete uhttpd.main.listen_http 2>/dev/null; do :; done
+        uci add_list uhttpd.main.listen_http="0.0.0.0:${http_port}"
+        uci add_list uhttpd.main.listen_http="[::]:${http_port}"
+        changed=1
+      fi
+      if [ "$got_https" != "$want_https" ]; then
+        while uci -q delete uhttpd.main.listen_https 2>/dev/null; do :; done
+        uci add_list uhttpd.main.listen_https="0.0.0.0:${https_port}"
+        uci add_list uhttpd.main.listen_https="[::]:${https_port}"
+        changed=1
+      fi
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      fi
+    uses_shell: true
+  register: flint2_luci_listen_ports
+  changed_when: flint2_luci_listen_ports.stdout is search('changed')
+  notify:
+    - Commit UCI changes
+    - Restart uhttpd
+
+- name: Enable Dropbear SSH service
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_access_control.ssh.enabled is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.enable
+    value: "{{ flint2_access_control.ssh.enabled }}"
+  notify:
+    - Commit UCI changes
+    - Restart dropbear
+
+- name: Configure Dropbear SSH port
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_access_control.ssh.port is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.Port
+    value: "{{ flint2_access_control.ssh.port }}"
+  notify:
+    - Commit UCI changes
+    - Restart dropbear
