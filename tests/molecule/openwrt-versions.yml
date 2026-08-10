@@ -1,4 +1,23 @@
 ---
-# OpenWrt rootfs versions used by Molecule Docker scenarios.
-versions:
-  - "24.10.7"
+# OpenWrt 25.12.5 aligns with GL.iNet OP25 (4.9.1-op25) base release.
+#
+# Third-party reference image (full QEMU VM, requires /dev/kvm on the Docker host):
+#   albrechtloh/openwrt-docker:openwrt-25.12.5-2bca120
+#
+# Molecule defaults to the rootfs backend: an OpenWrt 25.12.5 container built from
+# the official release tarball. It uses the same docker exec connection as before,
+# works on Colima/macOS, and matches OP25's apk-based userspace.
+#
+# To force the albrechtloh QEMU image on a Linux host with KVM:
+#   MOLECULE_OPENWRT_BACKEND=albrechtloh make molecule
+reference_image: albrechtloh/openwrt-docker:openwrt-25.12.5-2bca120
+default_backend: rootfs
+version: "25.12.5"
+container_name: openwrt2512
+rootfs:
+  url: https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/openwrt-25.12.5-x86-64-rootfs.tar.gz
+  local_image: flint2-molecule-openwrt:25.12.5
+albrechtloh:
+  image: albrechtloh/openwrt-docker:openwrt-25.12.5-2bca120
+  ssh_port: 8022
+  ansible_host: 127.0.0.1

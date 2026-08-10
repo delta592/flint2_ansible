@@ -3,14 +3,19 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Read OpenWrt versions
+    - name: Read OpenWrt test platform settings
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/openwrt-versions.yml"
         name: _openwrt
 
-    - name: Remove OpenWrt containers
+    - name: Remove OpenWrt test container
       community.docker.docker_container:
-        name: "openwrt{{ item.split('.')[0] }}{{ item.split('.')[1] }}"
+        name: "{{ _openwrt.container_name }}"
         state: absent
         force_kill: true
-      loop: "{{ _openwrt.versions }}"
+
+    - name: Remove OpenWrt 25.12.5 rootfs test image
+      when: lookup('env', 'MOLECULE_OPENWRT_PRUNE_IMAGE') | default('false', true) | bool
+      community.docker.docker_image:
+        name: "{{ _openwrt.rootfs.local_image }}"
+        state: absent
