@@ -1,3 +1,3 @@
 ---
-# Copy to vault.yml only if you need additional keys beyond .env/*.pub
-vault_flint2_wireless_key: "replace-with-argus-passphrase"
+# Optional encrypted secrets (not required for the wireless passphrase).
+# The ARGUS Wi-Fi key is read from .secrets/ARGUS_wifi_password.env by default.

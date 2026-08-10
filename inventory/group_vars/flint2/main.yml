@@ -10,18 +10,18 @@
 # - GL.iNet firmware upgrade via System → Upgrade
 # - LuCI configuration backup before major changes
 #
-# Live device discovery (2026-08-02):
-# - GL.iNet firmware 4.9.0 on OpenWrt 21.02-SNAPSHOT (opkg)
+# Live device discovery (2026-08-10, OP25 firmware after factory reset):
+# - GL.iNet firmware 4.9.1-op25 on OpenWrt 25.12.5 (apk)
 # - AP mode: glconfig.general.mode=ap, LAN proto=dhcp, WAN uplink=eth1
-# - Wireless uses MTK devices mt798611 (2g) / mt798612 (5g), not radio0/radio1
-# - Main SSID ifaces: wifi2g / wifi5g (guest/iot ifaces exist but are disabled)
+# - Wireless uses mac80211 devices radio0 (2g) / radio1 (5g)
+# - Main SSID ifaces: default_radio0 / default_radio1 (guest/iot ifaces exist but are disabled)
 # - br-lan MAC 94:83:c4:e3:f4:31 matches pfSense static mapping
 
 openwrt_device_model: glinet,gl-mt6000
 openwrt_device_name: Flint 2
 
-flint2_glinet_firmware_version: "4.9.0"
-flint2_openwrt_release: "21.02-SNAPSHOT"
+flint2_glinet_firmware_version: "4.9.1-op25"
+flint2_openwrt_release: "25.12.5"
 flint2_network_mode: ap
 flint2_lan_proto: dhcp
 flint2_wan_device: eth1
@@ -36,6 +36,8 @@ flint2_packages_present: []
 flint2_packages_absent: []
 
 flint2_hostname: wapap1003
+# LuCI System → System → Time Format: 24-Hour Clock
+flint2_clock_hourcycle: h23
 
 flint2_wireless_device_option_keys:
   - band
@@ -49,14 +51,18 @@ flint2_wireless_iface_option_keys:
   - encryption
   - key
 
+flint2_env_dir: "{{ inventory_dir }}/../.env"
+flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
+flint2_wireless_key_file: ARGUS_wifi_password.env
+
 flint2_wireless:
   ssid: ARGUS
   encryption: sae-mixed
-  key: "{{ vault_flint2_wireless_key | default('') }}"
+  key: "{{ lookup('ansible.builtin.file', flint2_secrets_dir + '/' + flint2_wireless_key_file) | trim }}"
   radios:
     # GL.iNet Mode 11n/ax — 20/40 MHz (UCI htmode HE40); require_mode n excludes 802.11g-only clients
-    - device: mt798611
-      iface: wifi2g
+    - device: radio0
+      iface: default_radio0
       band: 2g
       htmode: HE40
       hwmode: 11g
@@ -64,8 +70,8 @@ flint2_wireless:
       require_mode: n
     # GL.iNet Mode 11n/ac/ax — 160 MHz; require_mode n allows 802.11n/ac/ax clients
     # (use require_mode ac for 11ac/ax-only, which excludes 802.11n-only clients)
-    - device: mt798612
-      iface: wifi5g
+    - device: radio1
+      iface: default_radio1
       band: 5g
       htmode: HE160
       hwmode: 11a
@@ -77,9 +83,6 @@ flint2_wireless_guest_ifaces:
   - guest5g
   - iot2g
   - iot5g
-
-flint2_env_dir: "{{ inventory_dir }}/../.env"
-flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
 
 flint2_tls_enabled: true
 flint2_tls_cert_files_dir: "{{ flint2_env_dir }}"

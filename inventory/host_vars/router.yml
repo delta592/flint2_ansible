@@ -3,3 +3,6 @@ ansible_host: wapap1003
 
 # Dropbear on GL.iNet firmware may require explicit KEX algorithms (see TLS guide).
 ansible_ssh_extra_args: "-o KexAlgorithms=+curve25519-sha256,curve25519-sha256@libssh.org"
+
+# First run after factory reset: copy inventory/bootstrap.yml.example to
+# .secrets/bootstrap.yml and use make ping-bootstrap / make site-bootstrap.
