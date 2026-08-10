@@ -151,6 +151,38 @@ navigator-run: setup
 	@test -n "$(PLAYBOOK)" || (echo "Set PLAYBOOK=playbooks/site.yml" && exit 1)
 	$(UV) run ansible-navigator run $(PLAYBOOK) --eei $(EE_IMAGE) --rc ansible-navigator.yml -m stdout
 
+BOOTSTRAP_FILE := .secrets/bootstrap.yml
+
+.PHONY: bootstrap-check
+bootstrap-check:
+	@test -f $(BOOTSTRAP_FILE) || { \
+		echo "Missing $(BOOTSTRAP_FILE)."; \
+		echo "Copy inventory/bootstrap.yml.example to $(BOOTSTRAP_FILE) and set ansible_ssh_pass."; \
+		exit 1; \
+	}
+
+## Remove stale SSH host keys after factory reset or firmware upgrade
+.PHONY: known-hosts-reset
+known-hosts-reset:
+	-ssh-keygen -R wapap1003 2>/dev/null
+	-ssh-keygen -R wapap1003.federation.lcars 2>/dev/null
+	-ssh-keygen -R 192.168.0.247 2>/dev/null
+
+## Test SSH connectivity using bootstrap password auth (.secrets/bootstrap.yml)
+.PHONY: ping-bootstrap
+ping-bootstrap: install bootstrap-check
+	$(UV) run ansible-playbook playbooks/ping.yml -e @$(BOOTSTRAP_FILE)
+
+## Apply the site playbook using bootstrap password auth for the initial run
+.PHONY: site-bootstrap
+site-bootstrap: install bootstrap-check
+	$(UV) run ansible-playbook playbooks/site.yml -e @$(BOOTSTRAP_FILE) $(if $(TAGS),--tags $(TAGS),)
+
+## Dry-run the site playbook using bootstrap password auth
+.PHONY: check-bootstrap
+check-bootstrap: install bootstrap-check
+	$(UV) run ansible-playbook playbooks/site.yml --check --diff -e @$(BOOTSTRAP_FILE) $(if $(TAGS),--tags $(TAGS),)
+
 ## Test SSH connectivity to the Flint 2
 .PHONY: ping
 ping: install
@@ -169,34 +201,34 @@ check: install
 ## Configure hostname and system settings only
 .PHONY: system
 system: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags system
+	$(UV) run ansible-playbook playbooks/site.yml --tags system,always
 
 ## Configure NTP time synchronization only
 .PHONY: ntp
 ntp: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags ntp
+	$(UV) run ansible-playbook playbooks/site.yml --tags ntp,always
 
 ## Configure wireless networks only
 .PHONY: wireless
 wireless: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags wireless
+	$(UV) run ansible-playbook playbooks/site.yml --tags wireless,always
 
 ## Configure GL.iNet Access Control settings only
 .PHONY: access-control
 access-control: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags access_control
+	$(UV) run ansible-playbook playbooks/site.yml --tags access_control,luci,always
 
 ## Install TLS certificates on nginx and uHTTPd
 .PHONY: tls
 tls: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags tls
+	$(UV) run ansible-playbook playbooks/site.yml --tags tls,always
 
 ## Configure Dropbear and authorized_keys
 .PHONY: ssh
 ssh: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags ssh
+	$(UV) run ansible-playbook playbooks/site.yml --tags ssh,always
 
 ## Validate applied configuration and TLS endpoints
 .PHONY: verify
 verify: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags verify
+	$(UV) run ansible-playbook playbooks/site.yml --tags verify,always
