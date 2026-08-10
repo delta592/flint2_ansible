@@ -2,27 +2,44 @@
 
 This guide documents the successful setup performed on August 1, 2026, beginning with a factory reset and ending with a working Flint 2 access point on the existing pfSense-managed LAN.
 
+It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25** (OpenWrt **25.12.5**) and validating the [`flint2_ansible`](../README.md) playbooks against the live device.
+
 ## Final working configuration
 
 | Item | Value |
 |---|---|
 | Device | GL.iNet Flint 2 / GL-MT6000 |
+| GL.iNet firmware | `4.9.1-op25` |
+| OpenWrt base | `25.12.5` (shown in LuCI status) |
+| Package manager | `apk` (not `opkg` on OP25) |
 | Operating mode | Access Point |
 | Hostname | `wapap1003` |
 | FQDN | `wapap1003.federation.lcars` |
 | Management IP | `192.168.0.247` |
 | IP assignment | pfSense DHCP static mapping |
 | pfSense gateway | `192.168.0.250` |
-| Uplink port | Dedicated WAN / WAN1 |
+| pfSense DHCP hostname | `gl-mt6000` |
+| Uplink port | Dedicated WAN / WAN1 (`eth1`) |
 | Uplink speed | 2.5GbE |
+| LAN bridge MAC (pfSense mapping) | `94:83:c4:e3:f4:31` |
 | Main SSID | `ARGUS` |
-| 2.4 GHz mode | `11n/ax` |
+| 2.4 GHz radio / iface (UCI) | `radio0` / `default_radio0` |
+| 5 GHz radio / iface (UCI) | `radio1` / `default_radio1` |
+| 2.4 GHz mode | `11n/ax` (`htmode HE40`, `require_mode n`) |
 | 2.4 GHz channel width | 20/40 MHz |
-| 5 GHz mode | `11n/ac/ax` |
+| 5 GHz mode | `11n/ac/ax` (`htmode HE160`, `require_mode n`) |
 | 5 GHz channel width | 160 MHz |
-| Security | WPA2-PSK/WPA3-SAE mixed mode |
-| GL.iNet UI | `https://wapap1003.federation.lcars/` |
+| Security | WPA2-PSK/WPA3-SAE mixed mode (`sae-mixed`) |
+| NTP upstream | `pool.ntp.org` via `chronyd` |
+| LuCI time format | 24-Hour Clock (`system.@system[0].clock_hourcycle=h23`) |
+| GL.iNet UI | `https://wapap1003.federation.lcars/` (nginx, port 443) |
+| LuCI HTTP / HTTPS | ports `8080` / `8443` (uHTTPd) |
 | LuCI | `https://wapap1003.federation.lcars:8443/` |
+| SSH | `root@wapap1003` port 22, public-key only (after Ansible) |
+
+### Ansible-managed settings
+
+After manual prerequisites (sections 1–8), [`make site`](../README.md#quick-start) in this repository applies and verifies the values above. See [section 19](#19-ansible-automation) for bootstrap SSH and tag-specific runs.
 
 ---
 
@@ -196,7 +213,9 @@ LuCI was reachable at:
 https://192.168.0.75:8443/
 ```
 
-The HTTP LuCI endpoint on port 8080 loaded but did not authenticate correctly after the firmware upgrade. HTTPS on port 8443 worked and became the preferred LuCI endpoint.
+The HTTP LuCI endpoint on port 8080 may redirect to HTTPS. HTTPS on port 8443 is the preferred LuCI endpoint.
+
+On **OP25 firmware after a factory reset**, LuCI is not fully installed until you enable it from **GL.iNet UI → Applications → LuCI** or run the Ansible `luci` tasks (see [section 19](#19-ansible-automation)). Until then, uHTTPd may respond on port 8443 with `404` for `/cgi-bin/luci/`.
 
 ---
 
@@ -264,9 +283,9 @@ Important:
 
 - GL.iNet firmware is a customized OpenWrt build.
 - LuCI is an alternate administration interface into the same firmware.
-- Do not separately flash OpenWrt from LuCI unless intentionally replacing GL.iNet firmware entirely.
-- Do not bulk-upgrade bundled OpenWrt packages with `opkg`.
-- The LuCI status page may show an older OpenWrt base such as `21.02-SNAPSHOT`; this does not mean there are two independently upgradeable firmware layers.
+- Do not separately flash upstream OpenWrt from LuCI unless intentionally replacing GL.iNet firmware entirely.
+- On **OP25** builds (OpenWrt **25.12.5**), the package manager is **`apk`**. Do not bulk-upgrade packages with legacy **`opkg`** instructions from older guides.
+- The LuCI status page shows the current OpenWrt base (for example **25.12.5** on firmware **4.9.1-op25**). This is informational; continue using **GL.iNet UI → System → Upgrade** for firmware updates.
 
 After the upgrade, verify:
 
@@ -274,7 +293,7 @@ After the upgrade, verify:
 - WAN1 remains at 2.5GbE.
 - The AP remains reachable at `192.168.0.247`.
 - pfSense remains the DHCP server.
-- LuCI is reachable at HTTPS port 8443.
+- LuCI is installed and reachable at HTTPS port 8443 (see OP25 note in [section 6](#6-find-and-access-the-ap-management-address)).
 
 ---
 
@@ -297,14 +316,14 @@ Save the `.tar.gz` backup and include the firmware version in the filename.
 Example:
 
 ```text
-wapap1003-glinet-4.9.0-2026-08-01.tar.gz
+wapap1003-glinet-4.9.1-op25-2026-08-10.tar.gz
 ```
 
 Restore a backup only to the same or a clearly compatible firmware version.
 
 ---
 
-## 10. Set the hostname
+## 10. Set the hostname and LuCI time format
 
 Use LuCI for the system hostname because the GL.iNet interface does not expose it clearly.
 
@@ -318,13 +337,18 @@ Set:
 
 ```text
 Hostname: wapap1003
+Time Format: 24-Hour Clock
 ```
+
+The time format is stored as UCI option `system.@system[0].clock_hourcycle=h23`.
 
 Then click:
 
 ```text
 Save & Apply
 ```
+
+Alternatively, run `make site` or `make system` from this repository (see [section 19](#19-ansible-automation)).
 
 Use the GL.iNet interface for settings it exposes. Use LuCI only for settings absent from the GL.iNet interface.
 
@@ -477,9 +501,13 @@ A separate detailed guide was created for:
 
 Insert or link that guide here:
 
-```text
-PLACEHOLDER:
-Flint_2_TLS_Certificate_Installation_Guide.md
+[Flint_2_TLS_Certificate_Installation_Guide.md](Flint_2_TLS_Certificate_Installation_Guide.md)
+
+Or apply TLS with Ansible:
+
+```bash
+make tls
+make verify
 ```
 
 Final validated HTTPS endpoints:
@@ -540,6 +568,7 @@ Use the GL.iNet interface for:
 Use LuCI for:
 
 - Hostname
+- Time format (24-hour clock)
 - Logs and diagnostics
 - Configuration backups
 - Interface inspection
@@ -570,9 +599,11 @@ Confirm all of the following:
 - [x] Flint management IP is `192.168.0.247`.
 - [x] pfSense static mapping is present.
 - [x] Hostname is `wapap1003`.
+- [x] LuCI time format is 24-Hour Clock.
 - [x] FQDN resolves to `192.168.0.247`.
 - [x] GL.iNet UI opens securely over HTTPS.
 - [x] LuCI opens securely over HTTPS on port 8443.
+- [x] LuCI packages installed (OP25 bundled APKs + uhttpd-mod-ucode).
 - [x] TLS chain validates successfully.
 - [x] SSH public-key authentication works.
 - [x] 2.4 GHz clients connect.
@@ -582,27 +613,64 @@ Confirm all of the following:
 - [x] MacBook Air connects.
 - [x] SSID is `ARGUS`.
 - [x] Wi-Fi passphrase is stored in 1Password.
+- [x] NTP upstream is `pool.ntp.org` (chronyd).
 - [x] Configuration backup has been created.
 
 ---
 
 ## 18. Firmware caution
 
-The LuCI overview may report:
+The LuCI overview reports the **current** OpenWrt base bundled with GL.iNet firmware (for example **OpenWrt 25.12.5** on **4.9.1-op25**).
 
-```text
-OpenWrt 21.02-SNAPSHOT
-Kernel 5.4.x
-```
-
-Do not flash a newer OpenWrt image through LuCI merely because the displayed upstream base is old.
+Do not flash a different upstream OpenWrt image through LuCI merely because you want a newer upstream release.
 
 Doing so would replace the complete GL.iNet firmware and remove the GL.iNet interface and vendor integrations.
 
 For now:
 
-- Continue using the GL.iNet firmware upgrade mechanism.
+- Continue using **GL.iNet UI → System → Upgrade**.
 - Keep the AP behind pfSense.
 - Restrict management access to trusted LAN systems.
 - Retain backups and certificate-installation notes.
 - Re-evaluate official OpenWrt migration separately if desired later.
+
+---
+
+## 19. Ansible automation
+
+This repository automates post-prerequisite configuration. Inventory values live in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml).
+
+### First run after factory reset (bootstrap SSH)
+
+Dropbear has a temporary root password and no `authorized_keys` until the `ssh` role runs:
+
+```bash
+cp inventory/bootstrap.yml.example .secrets/bootstrap.yml
+# Edit ansible_ssh_pass, then:
+make ping-bootstrap
+make site-bootstrap
+make ping          # confirm key-based login
+rm .secrets/bootstrap.yml
+```
+
+See the [README](../README.md#bootstrap-ssh-first-run-after-reset) for details.
+
+### Routine apply and verify
+
+```bash
+make site          # full configuration
+make verify        # post-apply checks (includes TLS when enabled)
+```
+
+Partial targets automatically run the `always`-tagged UCI commit/apply step (for example `make system`, `make wireless`).
+
+| Make target | Ansible tags | Purpose |
+|---|---|---|
+| `make system` | `system,always` | Hostname, 24-hour clock |
+| `make wireless` | `wireless,always` | ARGUS SSID and radio options |
+| `make ntp` | `ntp,always` | chronyd upstream NTP |
+| `make access-control` | `access_control,luci,always` | Admin/LuCI ports, LuCI install |
+| `make tls` | `tls,always` | nginx + uHTTPd certificates |
+| `make ssh` | `ssh,always` | Dropbear hardening and keys |
+
+Wireless UCI on OP25 uses `radio0`/`default_radio0` and `radio1`/`default_radio1` (not legacy GL.iNet names `mt798611`/`wifi2g`).
