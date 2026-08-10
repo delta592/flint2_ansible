@@ -1,5 +1,7 @@
 ---
 flint2_hostname: router
+# LuCI System → System → Time Format (clock_hourcycle UCI option)
+flint2_clock_hourcycle: h23
 
 flint2_network_mode: router
 flint2_lan_proto: static
@@ -22,6 +24,7 @@ flint2_wireless_guest_ifaces: []
 
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
+flint2_wireless_key_file: ARGUS_wifi_password.env
 
 flint2_tls_enabled: false
 flint2_tls_cert_files_dir: "{{ flint2_env_dir }}"
@@ -46,6 +49,9 @@ flint2_ssh_authorized_keys: []
 flint2_dropbear_password_auth: "off"
 flint2_dropbear_root_password_auth: "off"
 flint2_ssh_require_authorized_keys: true
+
+# GL.iNet OP25 ships LuCI as optional bundled APKs; uHTTPd alone returns 404 for /cgi-bin/luci/.
+flint2_luci_enabled: true
 
 flint2_access_control_enabled: true
 flint2_nginx_gl_conf: /etc/nginx/conf.d/gl.conf
@@ -73,3 +79,6 @@ flint2_ntp:
 
 # Set false when verifying against vanilla OpenWrt (for example Molecule containers).
 flint2_verify_glinet_settings: true
+# Live runtime checks need a real router (Docker test containers cannot set kernel hostname or broadcast Wi-Fi).
+flint2_verify_live_hostname: true
+flint2_verify_live_wireless: true

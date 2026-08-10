@@ -1,32 +1,4 @@
 ---
-# community.openwrt.common handlers (Reload wifi, Restart network, etc.)
-# are registered by community.openwrt.init in playbooks/site.yml.
-
-- name: Commit UCI changes
-  community.openwrt.uci:
-    command: commit
-
-- name: Restart dropbear
-  community.openwrt.command:
-    cmd: /etc/init.d/dropbear restart
-    uses_shell: true
-
-- name: Restart nginx
-  community.openwrt.command:
-    cmd: /etc/init.d/nginx restart
-    uses_shell: true
-
-- name: Restart uhttpd
-  community.openwrt.command:
-    cmd: /etc/init.d/uhttpd restart
-    uses_shell: true
-
-- name: Restart time synchronization
-  community.openwrt.command:
-    cmd: |
-      if [ -x /etc/init.d/chronyd ]; then
-        /etc/init.d/chronyd restart
-      elif [ -x /etc/init.d/sysntpd ]; then
-        /etc/init.d/sysntpd restart
-      fi
-    uses_shell: true
+# UCI commit and service restarts are applied synchronously by tasks/apply.yml
+# before verification. community.openwrt.common handlers (Reload wifi, Restart
+# network, etc.) are registered by community.openwrt.init in playbooks/site.yml.

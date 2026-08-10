@@ -2,6 +2,9 @@
 # Shared variables for Molecule converge and verify playbooks.
 flint2_hostname: molecule-flint2
 flint2_verify_glinet_settings: false
+flint2_verify_live_hostname: false
+flint2_verify_live_wireless: false
+flint2_luci_enabled: false
 flint2_access_control_enabled: false
 flint2_lan_proto: static
 flint2_tls_enabled: false
@@ -28,16 +31,16 @@ flint2_wireless:
   key: molecule-test-key
   radios:
     # GL.iNet Mode 11n/ax (require_mode n)
-    - device: mt798611
-      iface: wifi2g
+    - device: radio0
+      iface: default_radio0
       band: 2g
       htmode: HE40
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n
     # GL.iNet Mode 11n/ac/ax (require_mode n)
-    - device: mt798612
-      iface: wifi5g
+    - device: radio1
+      iface: default_radio1
       band: 5g
       htmode: HE160
       hwmode: 11a

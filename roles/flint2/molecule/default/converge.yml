@@ -4,11 +4,6 @@
   gather_facts: false
   vars_files:
     - molecule_vars.yml
-  handlers:
-    - name: Reload wifi
-      community.openwrt.command:
-        cmd: /bin/true
-        uses_shell: true
   tasks:
     - name: Manage Flint 2 packages
       ansible.builtin.import_role:
@@ -34,3 +29,8 @@
       ansible.builtin.import_role:
         name: flint2
         tasks_from: ssh.yml
+
+    - name: Commit all UCI changes and restart affected services
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: apply.yml

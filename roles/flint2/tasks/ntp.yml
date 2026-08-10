@@ -90,6 +90,3 @@
     uses_shell: true
   register: flint2_ntp_config
   changed_when: flint2_ntp_config.stdout is search('changed')
-  notify:
-    - Commit UCI changes
-    - Restart time synchronization

@@ -10,6 +10,12 @@ argument_specs:
       flint2_hostname:
         type: str
         description: System hostname written to UCI system.@system[0].hostname.
+      flint2_clock_hourcycle:
+        type: str
+        default: h23
+        description: >-
+          LuCI System → System → Time Format (system.@system[0].clock_hourcycle).
+          Use h23 for 24-Hour Clock, h12 for 12-Hour Clock, or an empty string for Default.
       flint2_network_mode:
         type: str
         description: Expected GL.iNet network mode in glconfig.general.mode (for example ap or router).
@@ -71,7 +77,7 @@ argument_specs:
             type: list
             elements: dict
             default: []
-            description: Radio and interface definitions for MTK devices.
+            description: Radio and interface definitions for wireless UCI device sections.
             options:
               device:
                 type: str
@@ -112,6 +118,12 @@ argument_specs:
       flint2_secrets_dir:
         type: path
         description: Control-node directory containing private keys and other secrets.
+      flint2_wireless_key_file:
+        type: str
+        default: ARGUS_wifi_password.env
+        description: >-
+          Filename in flint2_secrets_dir containing the main Wi-Fi passphrase
+          (single line, no KEY=value syntax).
       flint2_tls_enabled:
         type: bool
         default: false
@@ -200,6 +212,12 @@ argument_specs:
         type: bool
         default: true
         description: Apply and verify GL.iNet Access Control settings when true.
+      flint2_luci_enabled:
+        type: bool
+        default: true
+        description: >-
+          Install bundled GL.iNet LuCI packages and uhttpd-mod-ucode when true.
+          OP25 ships LuCI as optional APKs; without this, uHTTPd returns 404 for /cgi-bin/luci/.
       flint2_nginx_gl_conf:
         type: path
         default: /etc/nginx/conf.d/gl.conf

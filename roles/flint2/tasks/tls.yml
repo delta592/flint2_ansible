@@ -40,6 +40,7 @@
   args:
     executable: /bin/bash
   changed_when: true
+  check_mode: false
 
 - name: Verify TLS leaf certificate and private key match
   when: flint2_tls_enabled | bool
@@ -53,6 +54,7 @@
   args:
     executable: /bin/bash
   changed_when: false
+  check_mode: false
 
 - name: Copy TLS certificate and key to router
   when: flint2_tls_enabled | bool
@@ -99,7 +101,7 @@
       chown root:root {{ flint2_tls_uhttpd_cert_path }} {{ flint2_tls_uhttpd_key_path }}
       chmod 644 {{ flint2_tls_uhttpd_cert_path }}
       chmod 600 {{ flint2_tls_uhttpd_key_path }}
-      /etc/init.d/uhttpd restart
+      uci set uhttpd.main.enabled='1'
     uses_shell: true
 
 - name: Remove temporary TLS files from router
