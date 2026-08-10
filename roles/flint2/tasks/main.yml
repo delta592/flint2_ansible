@@ -34,6 +34,13 @@
       tags: [tls]
   tags: [tls]
 
+- name: Ensure LuCI is installed and configured
+  ansible.builtin.include_tasks:
+    file: luci.yml
+    apply:
+      tags: [luci, access_control]
+  tags: [luci, access_control]
+
 - name: Configure Flint 2 local access control
   ansible.builtin.include_tasks:
     file: access_control.yml
@@ -48,7 +55,16 @@
       tags: [ssh]
   tags: [ssh]
 
+- name: Commit all UCI changes and restart affected services
+  when: not ansible_check_mode
+  ansible.builtin.include_tasks:
+    file: apply.yml
+    apply:
+      tags: [always]
+  tags: [always]
+
 - name: Validate Flint 2 configuration
+  when: not ansible_check_mode
   ansible.builtin.include_tasks:
     file: verify.yml
     apply:

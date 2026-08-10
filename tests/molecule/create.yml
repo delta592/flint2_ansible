@@ -2,31 +2,122 @@
 - name: Create
   hosts: localhost
   gather_facts: false
+  vars:
+    molecule_openwrt_backend: "{{ lookup('env', 'MOLECULE_OPENWRT_BACKEND') | default('', true) }}"
   tasks:
-    - name: Read OpenWrt versions
+    - name: Read OpenWrt test platform settings
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/openwrt-versions.yml"
         name: _openwrt
 
-    - name: Build platform list
+    - name: Resolve Molecule OpenWrt backend
       ansible.builtin.set_fact:
-        _platforms: >-
-          {{ _platforms | default([]) + [{
-            'name': 'openwrt' + item.split('.')[0] + item.split('.')[1],
-            'image': 'ghcr.io/openwrt/rootfs:x86_64-' + item,
-            'command': '/sbin/init'
-          }] }}
-      loop: "{{ _openwrt.versions }}"
+        _openwrt_backend: >-
+          {{
+            molecule_openwrt_backend
+            if molecule_openwrt_backend | length > 0
+            else _openwrt.default_backend
+          }}
 
-    - name: Create OpenWrt containers
+    - name: Probe Docker host for KVM support
       community.docker.docker_container:
-        name: "{{ item.name }}"
-        image: "{{ item.image }}"
-        command: "{{ item.command }}"
+        name: flint2-molecule-kvm-probe
+        image: alpine:3.22
+        command: sh -c 'test -e /dev/kvm && test -w /dev/kvm && echo yes || echo no'
+        devices:
+          - /dev/kvm
+        auto_remove: true
+        detach: false
+        cleanup: true
+      register: _openwrt_kvm_probe
+      changed_when: false
+      failed_when: false
+
+    - name: Select rootfs backend when albrechtloh was requested without KVM
+      when:
+        - _openwrt_backend == 'albrechtloh'
+        - _openwrt_kvm_probe.container.Output | default('no') | trim != 'yes'
+      ansible.builtin.set_fact:
+        _openwrt_backend: rootfs
+
+    - name: Note active Molecule OpenWrt backend
+      ansible.builtin.debug:
+        msg: >-
+          Using OpenWrt {{ _openwrt.version }} backend '{{ _openwrt_backend }}'
+          (reference image {{ _openwrt.reference_image }})
+
+    - name: Create image build context directory
+      when: _openwrt_backend == 'rootfs'
+      ansible.builtin.file:
+        path: "{{ molecule_ephemeral_directory }}/openwrt-image"
+        state: directory
+        mode: "0755"
+
+    - name: Download OpenWrt rootfs tarball
+      when: _openwrt_backend == 'rootfs'
+      ansible.builtin.get_url:
+        url: "{{ _openwrt.rootfs.url }}"
+        dest: "{{ molecule_ephemeral_directory }}/openwrt-image/rootfs.tar.gz"
+        mode: "0644"
+
+    - name: Stage Dockerfile for OpenWrt rootfs image
+      when: _openwrt_backend == 'rootfs'
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/images/openwrt-25.12.5/Dockerfile"
+        dest: "{{ molecule_ephemeral_directory }}/openwrt-image/Dockerfile"
+        mode: "0644"
+
+    - name: Build OpenWrt 25.12.5 rootfs test image
+      when: _openwrt_backend == 'rootfs'
+      community.docker.docker_image:
+        name: "{{ _openwrt.rootfs.local_image }}"
+        build:
+          path: "{{ molecule_ephemeral_directory }}/openwrt-image"
+          platform: linux/amd64
+        source: build
+        force_source: "{{ lookup('env', 'MOLECULE_OPENWRT_REBUILD') | default('false', true) | bool }}"
+
+    - name: Start OpenWrt rootfs test container
+      when: _openwrt_backend == 'rootfs'
+      community.docker.docker_container:
+        name: "{{ _openwrt.container_name }}"
+        image: "{{ _openwrt.rootfs.local_image }}"
+        command: /sbin/init
         platform: linux/amd64
         state: started
         auto_remove: false
-      loop: "{{ _platforms }}"
+      register: _openwrt_rootfs_container
+
+    - name: Start albrechtloh OpenWrt test container
+      when: _openwrt_backend == 'albrechtloh'
+      community.docker.docker_container:
+        name: "{{ _openwrt.container_name }}"
+        image: "{{ _openwrt.albrechtloh.image }}"
+        platform: linux/amd64
+        state: started
+        auto_remove: false
+        privileged: true
+        pid_mode: host
+        published_ports:
+          - "{{ _openwrt.albrechtloh.ssh_port }}:8022"
+        env:
+          LAN_IF: host
+          WAN_IF: host
+        devices:
+          - /dev/kvm
+        capabilities:
+          - NET_ADMIN
+        volumes:
+          - /dev:/dev
+      register: _openwrt_albrechtloh_container
+
+    - name: Wait for albrechtloh OpenWrt SSH endpoint
+      when: _openwrt_backend == 'albrechtloh'
+      ansible.builtin.wait_for:
+        host: "{{ _openwrt.albrechtloh.ansible_host }}"
+        port: "{{ _openwrt.albrechtloh.ssh_port }}"
+        delay: 10
+        timeout: 300
 
     - name: Create inventory directory
       ansible.builtin.file:
@@ -34,16 +125,42 @@
         state: directory
         mode: "0755"
 
-    - name: Build hosts dict
+    - name: Build rootfs inventory
+      when: _openwrt_backend == 'rootfs'
       ansible.builtin.set_fact:
-        _hosts: >-
-          {{ _hosts | default({}) | combine({
-               item.name: {'ansible_connection': 'community.docker.docker'}
-             }) }}
-      loop: "{{ _platforms }}"
+        _openwrt_host_vars:
+          ansible_connection: community.docker.docker
+
+    - name: Build albrechtloh inventory
+      when: _openwrt_backend == 'albrechtloh'
+      ansible.builtin.set_fact:
+        _openwrt_host_vars:
+          ansible_connection: ssh
+          ansible_host: "{{ _openwrt.albrechtloh.ansible_host }}"
+          ansible_port: "{{ _openwrt.albrechtloh.ssh_port }}"
+          ansible_user: root
+          ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
     - name: Write inventory
       ansible.builtin.copy:
         dest: "{{ molecule_ephemeral_directory }}/inventory/hosts.yml"
         mode: "0644"
-        content: "{{ {'all': {'hosts': _hosts}} | to_nice_yaml }}"
+        content: >-
+          {{
+            {
+              'all': {
+                'hosts': {
+                  _openwrt.container_name: _openwrt_host_vars | combine({
+                    'molecule_openwrt_backend': _openwrt_backend,
+                    'openwrt_package_manager': 'apk'
+                  })
+                }
+              }
+            } | to_nice_yaml
+          }}
+
+    - name: Write backend marker for downstream playbooks
+      ansible.builtin.copy:
+        dest: "{{ molecule_ephemeral_directory }}/openwrt-backend"
+        mode: "0644"
+        content: "{{ _openwrt_backend }}\n"

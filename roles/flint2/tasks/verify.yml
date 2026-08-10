@@ -13,6 +13,44 @@
       - flint2_verify_hostname.result == flint2_hostname
     fail_msg: "Hostname is '{{ flint2_verify_hostname.result }}', expected '{{ flint2_hostname }}'"
 
+- name: Read configured LuCI time format
+  when: flint2_clock_hourcycle is defined
+  community.openwrt.uci:
+    command: get
+    key: system.@system[0].clock_hourcycle
+  register: flint2_verify_clock_hourcycle
+  changed_when: false
+
+- name: Assert LuCI time format matches desired value
+  when: flint2_clock_hourcycle is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_clock_hourcycle.result == flint2_clock_hourcycle
+    fail_msg: >-
+      system.@system[0].clock_hourcycle is '{{ flint2_verify_clock_hourcycle.result }}',
+      expected '{{ flint2_clock_hourcycle }}' (LuCI 24-Hour Clock is h23)
+
+- name: Read live kernel hostname
+  when:
+    - flint2_hostname is defined
+    - flint2_verify_live_hostname | default(true) | bool
+  community.openwrt.command:
+    cmd: cat /proc/sys/kernel/hostname
+    uses_shell: true
+  register: flint2_live_hostname_cmd
+  changed_when: false
+
+- name: Assert live kernel hostname matches desired value
+  when:
+    - flint2_hostname is defined
+    - flint2_verify_live_hostname | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_live_hostname_cmd.stdout | trim == flint2_hostname
+    fail_msg: >-
+      Live hostname is '{{ flint2_live_hostname_cmd.stdout | trim }}',
+      expected '{{ flint2_hostname }}' (run /etc/init.d/system reload if UCI is correct)
+
 - name: Detect NTP configuration backend
   when: flint2_ntp_enabled | default(true) | bool
   community.openwrt.command:
@@ -258,6 +296,79 @@
       uhttpd.main.listen_https is '{{ flint2_verify_luci_listen_https.result }}',
       expected 0.0.0.0:{{ flint2_access_control.luci.https_port }} and [::]:{{ flint2_access_control.luci.https_port }}
 
+- name: Assert LuCI uHTTPd ucode module is installed
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+  community.openwrt.command:
+    cmd: test -f /usr/lib/uhttpd_ucode.so
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_luci_uhttpd_ucode
+
+- name: Assert LuCI uHTTPd handler is installed
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+  community.openwrt.command:
+    cmd: test -f /usr/share/ucode/luci/uhttpd.uc
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_luci_uhttpd_handler
+
+- name: Assert LuCI packages are installed
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_luci_uhttpd_ucode.rc == 0
+      - flint2_verify_luci_uhttpd_handler.rc == 0
+    fail_msg: >-
+      LuCI is not installed (missing uhttpd-mod-ucode or luci-base).
+      Enable flint2_luci_enabled or install LuCI from the GL.iNet UI first.
+
+- name: Probe LuCI HTTPS endpoint
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.https_port is defined
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      port="{{ flint2_access_control.luci.https_port }}"
+      url="https://127.0.0.1:${port}/cgi-bin/luci/"
+      if command -v curl >/dev/null 2>&1; then
+        headers="$(curl -skI --max-time 10 "$url" 2>/dev/null || true)"
+      else
+        headers="$(uclient-fetch -q -O /dev/null --no-check-certificate "$url" 2>&1 || true)"
+      fi
+      if echo "$headers" | grep -Eiq '404|not found on this server'; then
+        echo "LuCI endpoint returned 404"
+        exit 1
+      fi
+      if echo "$headers" | grep -Eiq 'x-luci-login-required|403 forbidden'; then
+        exit 0
+      fi
+      exit 0
+    uses_shell: true
+  changed_when: false
+  register: flint2_verify_luci_probe
+
+- name: Assert LuCI HTTPS endpoint responds
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control.luci.https_port is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_luci_probe.rc == 0
+    fail_msg: >-
+      LuCI is not reachable on HTTPS port {{ flint2_access_control.luci.https_port }}
+      (expected login page, not uHTTPd 404).
+
 - name: Read Dropbear SSH enablement
   when:
     - flint2_access_control_enabled | default(true) | bool
@@ -322,6 +433,40 @@
       - item.result == flint2_wireless.ssid
     fail_msg: "SSID on {{ item.item.iface }} is '{{ item.result }}'"
   loop: "{{ flint2_verify_wireless_ssids.results }}"
+  loop_control:
+    label: "{{ item.item.iface }}"
+
+- name: Read live wireless SSID broadcast by each main AP interface
+  when:
+    - flint2_wireless.ssid is defined
+    - flint2_verify_live_wireless | default(true) | bool
+    - item.iface is defined
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      ifname="$(uci -q get "wireless.{{ item.iface }}.ifname" 2>/dev/null || true)"
+      if [ -z "$ifname" ]; then
+        ifname="$(ubus call network.wireless status 2>/dev/null | jsonfilter -e '@.{{ item.device }}.interfaces[@.section="{{ item.iface }}"].ifname' 2>/dev/null || true)"
+      fi
+      test -n "$ifname"
+      iwinfo "$ifname" info | awk -F '"' '/ESSID/ {print $2; exit}'
+    uses_shell: true
+  loop: "{{ flint2_wireless.radios | default([]) | selectattr('iface', 'defined') | list }}"
+  register: flint2_verify_wireless_live_ssids
+  changed_when: false
+
+- name: Assert live wireless SSID broadcasts match desired value
+  when:
+    - flint2_wireless.ssid is defined
+    - flint2_verify_live_wireless | default(true) | bool
+    - flint2_verify_wireless_live_ssids.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.stdout | trim == flint2_wireless.ssid
+    fail_msg: >-
+      Live SSID on {{ item.item.iface }} is '{{ item.stdout | trim }}',
+      expected '{{ flint2_wireless.ssid }}' (run /sbin/wifi reload if UCI is correct)
+  loop: "{{ flint2_verify_wireless_live_ssids.results | selectattr('skipped', 'undefined') | list }}"
   loop_control:
     label: "{{ item.item.iface }}"
 

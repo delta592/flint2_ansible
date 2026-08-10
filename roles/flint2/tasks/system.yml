@@ -5,5 +5,10 @@
     command: set
     key: system.@system[0].hostname
     value: "{{ flint2_hostname }}"
-  notify:
-    - Commit UCI changes
+
+- name: Set LuCI time format
+  when: flint2_clock_hourcycle is defined
+  community.openwrt.uci:
+    command: set
+    key: system.@system[0].clock_hourcycle
+    value: "{{ flint2_clock_hourcycle }}"

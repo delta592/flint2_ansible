@@ -1,0 +1,117 @@
+---
+- name: Install bundled GL.iNet LuCI packages
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - openwrt_package_manager == "apk"
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      if apk info -e luci-base >/dev/null 2>&1; then
+        exit 0
+      fi
+      pkgs=""
+      for dir in /etc/luci_apks /etc/luci_ipks; do
+        [ -d "$dir" ] || continue
+        for apk_file in "$dir"/*.apk; do
+          [ -e "$apk_file" ] || continue
+          pkgs="$pkgs $apk_file"
+        done
+      done
+      if [ -z "$pkgs" ]; then
+        echo "Bundled LuCI APKs not found under /etc/luci_apks or /etc/luci_ipks" >&2
+        exit 1
+      fi
+      # shellcheck disable=SC2086
+      apk add --allow-untrusted $pkgs
+      echo changed
+    uses_shell: true
+  register: flint2_luci_bundled_install
+  changed_when: flint2_luci_bundled_install.stdout is search('changed')
+
+- name: Install bundled GL.iNet LuCI packages with opkg
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - openwrt_package_manager == "opkg"
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      if opkg list-installed luci-base >/dev/null 2>&1; then
+        exit 0
+      fi
+      if [ ! -d /etc/luci_ipks ]; then
+        echo "Bundled LuCI IPKs not found under /etc/luci_ipks" >&2
+        exit 1
+      fi
+      opkg install /etc/luci_ipks/*.ipk -f /etc/luci_ipks/feeds.conf
+      echo changed
+    uses_shell: true
+  register: flint2_luci_bundled_install_opkg
+  changed_when: flint2_luci_bundled_install_opkg.stdout is search('changed')
+
+- name: Install uHTTPd ucode module for LuCI
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - openwrt_package_manager == "apk"
+  community.openwrt.apk:
+    name: uhttpd-mod-ucode
+    state: present
+
+- name: Install uHTTPd ucode module for LuCI with opkg
+  when:
+    - flint2_luci_enabled | default(true) | bool
+    - openwrt_package_manager == "opkg"
+  community.openwrt.opkg:
+    name: uhttpd-mod-ucode
+    state: present
+
+- name: Configure uHTTPd for LuCI
+  when: flint2_luci_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      ucode_handler='/cgi-bin/luci=/usr/share/ucode/luci/uhttpd.uc'
+
+      if [ -f /usr/share/ucode/luci/uhttpd.uc ]; then
+        if ! uci -q get uhttpd.main.ucode_prefix | grep -Fq "$ucode_handler"; then
+          uci add_list uhttpd.main.ucode_prefix="$ucode_handler"
+          changed=1
+        fi
+      fi
+
+      if [ ! -f /usr/lib/lua/luci/sgi/uhttpd.lua ] && uci -q get uhttpd.main.lua_prefix >/dev/null 2>&1; then
+        while uci -q delete uhttpd.main.lua_prefix 2>/dev/null; do :; done
+        changed=1
+      fi
+
+      for option in inited:1 enabled:1 rfc1918_filter:0; do
+        key="${option%%:*}"
+        want="${option#*:}"
+        got="$(uci -q get uhttpd.main."$key" 2>/dev/null || true)"
+        if [ "$got" != "$want" ]; then
+          uci set uhttpd.main."$key"="$want"
+          changed=1
+        fi
+      done
+
+      if uci -q get luci >/dev/null 2>&1; then
+        got_lang="$(uci -q get luci.languages.en 2>/dev/null || true)"
+        if [ -z "$got_lang" ]; then
+          uci set luci.languages.en='English'
+          changed=1
+        fi
+      fi
+
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      fi
+    uses_shell: true
+  register: flint2_luci_uhttpd_config
+  changed_when: flint2_luci_uhttpd_config.stdout is search('changed')
+
+- name: Enable rpcd for LuCI
+  when: flint2_luci_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: /etc/init.d/rpcd enable
+    uses_shell: true
+  changed_when: false

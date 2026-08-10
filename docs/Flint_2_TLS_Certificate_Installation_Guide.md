@@ -2,6 +2,8 @@
 
 This guide documents how to install a private-CA server certificate on both web interfaces of a GL.iNet Flint 2 (GL-MT6000) running GL.iNet firmware/OpenWrt.
 
+**Ansible automation:** When `.env/` and `.secrets/` contain the certificate files listed below, run `make tls` and `make verify` from the repository root instead of the manual steps in sections 3–8. See the [README](../README.md#secrets-and-certificates) and [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml) for file names and paths.
+
 ## Environment
 
 | Item | Value |
@@ -9,13 +11,18 @@ This guide documents how to install a private-CA server certificate on both web 
 | Hostname | `wapap1003` |
 | FQDN | `wapap1003.federation.lcars` |
 | Management IP | `192.168.0.247` |
-| GL.iNet web UI | `https://wapap1003.federation.lcars/` |
-| LuCI web UI | `https://wapap1003.federation.lcars:8443/` |
+| GL.iNet firmware | `4.9.1-op25` (OpenWrt `25.12.5`) |
+| GL.iNet web UI | `https://wapap1003.federation.lcars/` (nginx, port 443) |
+| LuCI web UI | `https://wapap1003.federation.lcars:8443/` (uHTTPd, port 8443) |
+| LuCI HTTP (redirect) | port `8080` |
 | SSH username | `root` |
-| Server certificate | `wapap1003.crt` |
-| Private key | `wapap1003.key` |
-| Intermediate CA | `Federation_LCARS_Intermediate_v002.crt` |
-| Full-chain file | `wapap1003-fullchain.crt` |
+| Server certificate | `wapap1003.crt` (in `.env/`) |
+| Private key | `wapap1003.key` (in `.secrets/`) |
+| Intermediate CA | `Federation_LCARS_Intermediate_v002.crt` (in `.env/`) |
+| Full-chain file | `wapap1003-fullchain.crt` (built on control node) |
+| nginx cert/key on router | `/etc/nginx/nginx.cer`, `/etc/nginx/nginx.key` |
+| uHTTPd cert/key on router | `/etc/uhttpd.crt`, `/etc/uhttpd.key` |
+| TLS backup suffix (Ansible) | `pre-wapap1003` |
 
 The certificate should contain these Subject Alternative Names:
 
@@ -78,6 +85,8 @@ Host wapap1003 192.168.0.247
     PasswordAuthentication yes
 ```
 
+For Ansible bootstrap runs, copy [`inventory/bootstrap.yml.example`](../inventory/bootstrap.yml.example) to `.secrets/bootstrap.yml` instead of editing `~/.ssh/config`. See [README → Bootstrap SSH](../README.md#bootstrap-ssh-first-run-after-reset).
+
 Protect the configuration file:
 
 ```bash
@@ -128,6 +137,8 @@ scp: Connection closed
 ```
 
 Force the legacy SCP protocol with uppercase `-O`.
+
+Ansible in this repository already sets `scp -O` via [`ansible.cfg`](../ansible.cfg) and [`inventory/group_vars/openwrt.yml`](../inventory/group_vars/openwrt.yml). Manual `scp` still needs `-O` explicitly.
 
 ### Using the SSH-config alias
 
@@ -245,17 +256,33 @@ https://wapap1003.federation.lcars/
 
 ## 6. Install the certificate for LuCI
 
-LuCI is served by uHTTPd on TCP port 8443.
+LuCI is served by uHTTPd on TCP port **8443** (HTTP on **8080**).
 
-### Confirm the configured certificate paths
+### OP25 prerequisites
+
+On **4.9.1-op25** after a factory reset:
+
+1. **Install LuCI** — bundled APKs under `/etc/luci_ipks/` via **GL.iNet UI → Applications → LuCI**, or run `make access-control` / `make site` (installs `luci-base`, `uhttpd-mod-ucode`, and related packages).
+2. **Enable uHTTPd** — OP25 ships with `uhttpd.main.enabled='0'` until LuCI is initialized. uHTTPd must be enabled or nothing listens on 8443.
+3. Without LuCI installed, `https://…:8443/cgi-bin/luci/` returns **404 Not Found** even if uHTTPd is running.
+
+### Confirm the configured certificate paths and listeners
 
 ```sh
+uci get uhttpd.main.enabled
 uci get uhttpd.main.cert
 uci get uhttpd.main.key
-uci show uhttpd | grep listen_https
+uci show uhttpd | grep listen
 ```
 
-The standard paths are:
+Expected listen values (Ansible / Access Control defaults):
+
+```text
+uhttpd.main.listen_http='0.0.0.0:8080' '[::]:8080'
+uhttpd.main.listen_https='0.0.0.0:8443' '[::]:8443'
+```
+
+The standard certificate paths are:
 
 ```text
 /etc/uhttpd.crt
@@ -280,9 +307,11 @@ chmod 644 /etc/uhttpd.crt
 chmod 600 /etc/uhttpd.key
 ```
 
-### Restart uHTTPd
+### Enable uHTTPd, commit, and restart
 
 ```sh
+uci set uhttpd.main.enabled='1'
+uci commit uhttpd
 /etc/init.d/uhttpd restart
 ```
 
@@ -378,10 +407,14 @@ You can also rerun both `openssl s_client` tests.
 
 ## 10. Important maintenance note
 
-A future GL.iNet firmware upgrade may replace the nginx or uHTTPd certificate files. After each firmware upgrade:
+A future GL.iNet firmware upgrade may replace the nginx or uHTTPd certificate files, disable uHTTPd, or remove LuCI packages. After each firmware upgrade:
 
 1. Check both HTTPS endpoints.
 2. Confirm the expected certificate is still served.
-3. Reinstall the certificate and key if the firmware restored vendor-generated files.
-4. Recheck file ownership and permissions.
-5. Restart nginx and uHTTPd.
+3. Reinstall LuCI if `/cgi-bin/luci/` returns 404 (see [section 6](#6-install-the-certificate-for-luci)).
+4. Reinstall the certificate and key if the firmware restored vendor-generated files (`make tls` or manual steps).
+5. Confirm `uhttpd.main.enabled='1'` and run `uci commit` before restarting services.
+6. Recheck file ownership and permissions.
+7. Restart nginx and uHTTPd.
+
+Re-run `make site` or `make verify` to confirm Ansible-managed TLS fingerprints match the installed leaf certificate.

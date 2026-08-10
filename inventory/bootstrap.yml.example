@@ -1,0 +1,18 @@
+---
+# Copy to .secrets/bootstrap.yml for the first playbook run after factory reset,
+# firmware upgrade, or any time Dropbear authorized_keys is not yet deployed.
+#
+#   cp inventory/bootstrap.yml.example .secrets/bootstrap.yml
+#   # Edit ansible_ssh_pass if needed, then:
+#   make ping-bootstrap
+#   make site-bootstrap
+#
+# Remove .secrets/bootstrap.yml (or delete ansible_ssh_pass) after key-based
+# login works with: make ping
+
+ansible_ssh_pass: replace-with-temp-root-password
+ansible_ssh_common_args: >-
+  -o StrictHostKeyChecking=accept-new
+  -o PubkeyAuthentication=no
+  -o PreferredAuthentications=password
+  -o KexAlgorithms=+curve25519-sha256,curve25519-sha256@libssh.org

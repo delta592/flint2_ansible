@@ -26,9 +26,7 @@
         command: set
         key: "wireless.{{ item }}"
         value: wifi-device
-      loop:
-        - mt798611
-        - mt798612
+      loop: "{{ flint2_wireless.radios | map(attribute='device') | list | unique }}"
 
     - name: Seed synthetic main AP wireless interface sections
       community.openwrt.uci:

@@ -6,8 +6,9 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 
 ## Features
 
-- **System** — hostname and AP-mode settings validated against live device state
-- **Wireless** — 2.4 GHz and 5 GHz SSIDs via MTK UCI sections (`mt798611`/`wifi2g`, `mt798612`/`wifi5g`)
+- **System** — hostname, LuCI 24-hour clock (`clock_hourcycle=h23`), and AP-mode settings validated against live device state
+- **Wireless** — 2.4 GHz and 5 GHz SSIDs via UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1` on OP25)
+- **LuCI** — installs bundled OP25 LuCI APKs, `uhttpd-mod-ucode`, and uHTTPd handler configuration
 - **Access Control** — GL.iNet admin panel, LuCI, and SSH ports, Force HTTPS, and auto-logout
 - **TLS** — private CA certificates on nginx (GL.iNet UI, port 443) and uHTTPd (LuCI, port 8443)
 - **SSH** — Dropbear hardening (password auth off) and `authorized_keys` management
@@ -90,7 +91,9 @@ Pre-commit runs the same linters and Gitleaks before each commit once hooks are 
 
 ### Docker via Colima
 
-Molecule tests provision OpenWrt containers through Docker. OpenWrt publishes `x86_64` rootfs images only, so on Apple Silicon you need Colima with Rosetta emulation:
+Molecule tests provision an **OpenWrt 25.12.5** container aligned with the OP25 base release. The third-party reference image is `albrechtloh/openwrt-docker:openwrt-25.12.5-2bca120`; by default Molecule builds a local rootfs container from the official 25.12.5 tarball because the albrechtloh image runs OpenWrt inside QEMU and requires `/dev/kvm` (not available on Colima/macOS).
+
+On Apple Silicon you need Colima with Rosetta emulation:
 
 ```bash
 make colima-start    # starts Colima with --vm-type vz --vz-rosetta on arm64 Macs
@@ -99,9 +102,17 @@ make test-all        # or: make molecule
 
 If Colima was previously started without Rosetta, stop it first (`colima stop`) and run `make colima-start` again.
 
-When Colima is running, Make automatically sets `DOCKER_HOST` to `unix://$HOME/.colima/default/docker.sock`. Molecule pulls OpenWrt images with `platform: linux/amd64`. To use a different runtime, set `DOCKER_HOST` yourself before running Molecule.
+When Colima is running, Make automatically sets `DOCKER_HOST` to `unix://$HOME/.colima/default/docker.sock`. Molecule builds and runs the 25.12.5 test image with `platform: linux/amd64`. To use a different runtime, set `DOCKER_HOST` yourself before running Molecule.
 
-The Molecule scenario seeds synthetic MTK-style wireless UCI sections, then applies and verifies the `packages`, `system`, `ntp`, `wireless`, and `ssh` task files. TLS and GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
+Optional environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `MOLECULE_OPENWRT_BACKEND=albrechtloh` | Use the albrechtloh QEMU image over SSH (Linux host with KVM) |
+| `MOLECULE_OPENWRT_REBUILD=true` | Force rebuild of the local 25.12.5 rootfs image |
+| `MOLECULE_OPENWRT_PRUNE_IMAGE=true` | Remove the local 25.12.5 image during `molecule destroy` |
+
+The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), then applies and verifies the `packages`, `system`, `ntp`, `wireless`, and `ssh` task files. TLS and GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
@@ -116,26 +127,53 @@ Sensitive files live outside the repository and are listed in [`.gitignore`](.gi
   id_ed25519.pub               # SSH authorized keys
   id_ed25519_v002.pub
 
-.secrets/                      # Private keys (gitignored)
+.secrets/                      # Private keys and passphrases (gitignored)
   wapap1003.key
+  ARGUS_wifi_password.env      # Main Wi-Fi passphrase (single line, no KEY=value)
 
 inventory/group_vars/flint2/
   main.yml                     # Device and service configuration
-  vault.yml                    # Encrypted secrets (gitignored; create from example)
+  vault.yml                    # Optional encrypted secrets (gitignored)
   vault.yml.example
 ```
 
-### Vault (optional)
+The wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). The file should contain the passphrase alone on one line.
 
-If the wireless passphrase should not live in plain text, copy the example and encrypt it:
+### Bootstrap SSH (first run after reset)
+
+Normal targets expect key-based SSH. After a factory reset or firmware upgrade, Dropbear has a temporary root password and no `authorized_keys` yet — a chicken-and-egg problem until the `ssh` role runs.
+
+1. Clear stale host keys if the router was re-flashed:
 
 ```bash
-cp inventory/group_vars/flint2/vault.yml.example inventory/group_vars/flint2/vault.yml
-# Edit vault.yml, then:
-ansible-vault encrypt inventory/group_vars/flint2/vault.yml
+make known-hosts-reset
 ```
 
-The wireless key is referenced as `vault_flint2_wireless_key` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml).
+2. Create bootstrap connection settings:
+
+```bash
+cp inventory/bootstrap.yml.example .secrets/bootstrap.yml
+# Edit ansible_ssh_pass to the current temporary root password
+```
+
+3. Run the playbook with password auth (deploys keys, then disables password login):
+
+```bash
+make ping-bootstrap
+make check-bootstrap          # optional dry-run
+make site-bootstrap           # full apply
+# or a subset first:
+make site-bootstrap TAGS=ssh
+```
+
+4. Confirm key-based access, then remove bootstrap credentials:
+
+```bash
+make ping
+rm .secrets/bootstrap.yml
+```
+
+Bootstrap vars set `PubkeyAuthentication=no` and `PreferredAuthentications=password` so Ansible does not offer your local agent key first and fail before trying the temp password.
 
 ## Configuration
 
@@ -154,20 +192,25 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | Tag | Task file | Purpose |
 | --- | --- | --- |
 | `packages` | `packages.yml` | Optional package install/remove |
-| `system` | `system.yml` | Hostname and system settings |
-| `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org`) |
+| `system` | `system.yml` | Hostname, LuCI 24-hour clock |
+| `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
 | `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
+| `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |
 | `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
 | `tls` | `tls.yml` | Certificate deployment |
 | `ssh` | `ssh.yml` | Dropbear and authorized keys |
+| `always` | `apply.yml` | UCI commit and service restarts (runs with every partial Make target) |
 | `verify` | `verify.yml` | Post-apply validation |
+
+Partial Make targets (for example `make system`) pass `--tags <area>,always` so UCI changes are committed before verification.
 
 Run a subset with Make or Ansible directly:
 
 ```bash
 make tls
 make ssh
-ansible-playbook playbooks/site.yml --tags wireless,tls
+make access-control   # includes luci tag
+ansible-playbook playbooks/site.yml --tags wireless,tls,always
 ```
 
 Dry-run without applying changes:
@@ -215,9 +258,9 @@ docs/
 GL.iNet firmware ships Dropbear without an SFTP server. The [`community.openwrt.init`](https://docs.ansible.com/ansible/latest/collections/community/openwrt/init_module.html) module uploads files over SCP, so this project forces legacy SCP mode:
 
 - [`ansible.cfg`](ansible.cfg) — `scp_extra_args = -O`
-- [`inventory/group_vars/openwrt.yml`](inventory/group_vars/openwrt.yml) — `ansible_scp_extra_args: "-O"`
+- [`inventory/group_vars/openwrt.yml`](inventory/group_vars/openwrt.yml) — `ansible_ssh_transfer_method: scp` and `ansible_scp_extra_args: "-O"`
 
-Without this, module transfer can fail and produce misleading errors (for example, `opkg` not found).
+Without this, Ansible tries SFTP first, Dropbear reports `/usr/libexec/sftp-server: not found`, and you see a harmless-but-noisy warning before SCP fallback. `playbooks/ping.yml` includes the `community.openwrt.init` role so connection settings match `site.yml`.
 
 ## TLS verification
 
@@ -227,8 +270,8 @@ When `flint2_tls_verify_from_client` is enabled, fingerprints are also compared 
 
 ## Documentation
 
-- [Flint 2 AP Installation Guide](docs/Flint_2_AP_Installation_Guide_2026-08-01.md) — physical setup, AP mode, pfSense DHCP, wireless
-- [Flint 2 TLS Certificate Installation Guide](docs/Flint_2_TLS_Certificate_Installation_Guide.md) — private CA cert install on nginx and uHTTPd
+- [Flint 2 AP Installation Guide](docs/Flint_2_AP_Installation_Guide_2026-08-01.md) — physical setup, AP mode, pfSense DHCP, wireless, OP25 notes, Ansible automation
+- [Flint 2 TLS Certificate Installation Guide](docs/Flint_2_TLS_Certificate_Installation_Guide.md) — private CA cert install on nginx and uHTTPd (manual or `make tls`)
 - [Ansible best practices](docs/ansible_best_practices.md) — tooling reference for future development
 
 ## License
