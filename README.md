@@ -7,6 +7,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 ## Features
 
 - **System** — hostname, LuCI 24-hour clock (`clock_hourcycle=h23`), and AP-mode settings validated against live device state
+- **Firmware** — GL.iNet Automatic Update Check disabled (`upgrade.general.upgrade_enable=0`)
 - **Wireless** — 2.4 GHz and 5 GHz SSIDs via UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1` on OP25)
 - **LuCI** — installs bundled OP25 LuCI APKs, `uhttpd-mod-ucode`, and uHTTPd handler configuration
 - **Access Control** — GL.iNet admin panel, LuCI, and SSH ports, Force HTTPS, and auto-logout
@@ -193,6 +194,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | --- | --- | --- |
 | `packages` | `packages.yml` | Optional package install/remove |
 | `system` | `system.yml` | Hostname, LuCI 24-hour clock |
+| `upgrade` | `upgrade.yml` | GL.iNet Automatic Update Check (`upgrade.general.upgrade_enable`) |
 | `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
 | `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
 | `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |

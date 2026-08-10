@@ -3,6 +3,9 @@ flint2_hostname: router
 # LuCI System → System → Time Format (clock_hourcycle UCI option)
 flint2_clock_hourcycle: h23
 
+# GL.iNet UI → System → Upgrade → Automatic Update Check (upgrade.general.upgrade_enable)
+flint2_firmware_auto_update_check: "0"
+
 flint2_network_mode: router
 flint2_lan_proto: static
 flint2_wan_device: eth1

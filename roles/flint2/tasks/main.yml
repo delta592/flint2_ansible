@@ -13,6 +13,13 @@
       tags: [system]
   tags: [system]
 
+- name: Configure Flint 2 firmware upgrade settings
+  ansible.builtin.include_tasks:
+    file: upgrade.yml
+    apply:
+      tags: [upgrade]
+  tags: [upgrade]
+
 - name: Configure Flint 2 NTP time synchronization
   ansible.builtin.include_tasks:
     file: ntp.yml

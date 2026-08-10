@@ -115,6 +115,28 @@
       system.ntp.server is '{{ flint2_verify_sysntpd_servers.result | default([]) }}',
       expected '{{ flint2_ntp.servers }}'
 
+- name: Read GL.iNet firmware Automatic Update Check setting
+  when:
+    - flint2_firmware_auto_update_check is defined
+    - flint2_verify_glinet_settings | default(true) | bool
+  community.openwrt.uci:
+    command: get
+    key: upgrade.general.upgrade_enable
+  register: flint2_verify_firmware_auto_update_check
+  changed_when: false
+
+- name: Assert GL.iNet firmware Automatic Update Check matches desired value
+  when:
+    - flint2_firmware_auto_update_check is defined
+    - flint2_verify_glinet_settings | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_firmware_auto_update_check.result == flint2_firmware_auto_update_check
+    fail_msg: >-
+      upgrade.general.upgrade_enable is '{{ flint2_verify_firmware_auto_update_check.result }}',
+      expected '{{ flint2_firmware_auto_update_check }}'
+      (GL.iNet UI → System → Upgrade → Automatic Update Check)
+
 - name: Read GL.iNet network mode
   when:
     - flint2_verify_glinet_settings | default(true) | bool
