@@ -16,6 +16,15 @@ argument_specs:
         description: >-
           LuCI System → System → Time Format (system.@system[0].clock_hourcycle).
           Use h23 for 24-Hour Clock, h12 for 12-Hour Clock, or an empty string for Default.
+      flint2_firmware_auto_update_check:
+        type: str
+        default: "0"
+        choices:
+          - "0"
+          - "1"
+        description: >-
+          GL.iNet UI → System → Upgrade → Automatic Update Check
+          (upgrade.general.upgrade_enable). Use "0" to disable background firmware update checks.
       flint2_network_mode:
         type: str
         description: Expected GL.iNet network mode in glconfig.general.mode (for example ap or router).

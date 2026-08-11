@@ -39,6 +39,9 @@ flint2_hostname: wapap1003
 # LuCI System → System → Time Format: 24-Hour Clock
 flint2_clock_hourcycle: h23
 
+# GL.iNet UI → System → Upgrade → Automatic Update Check (upgrade.general.upgrade_enable)
+flint2_firmware_auto_update_check: "0"
+
 flint2_wireless_device_option_keys:
   - band
   - htmode
