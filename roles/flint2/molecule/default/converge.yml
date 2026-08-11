@@ -25,6 +25,11 @@
         name: flint2
         tasks_from: wireless.yml
 
+    - name: Configure Flint 2 firmware upgrade settings
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: upgrade.yml
+
     - name: Configure Flint 2 SSH access
       ansible.builtin.import_role:
         name: flint2

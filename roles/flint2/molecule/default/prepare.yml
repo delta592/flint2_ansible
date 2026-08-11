@@ -60,3 +60,26 @@
       community.openwrt.uci:
         command: commit
         config: wireless
+
+    - name: Ensure upgrade UCI config exists in the container rootfs
+      community.openwrt.command:
+        cmd: test -f /etc/config/upgrade || touch /etc/config/upgrade
+        uses_shell: true
+      changed_when: false
+
+    - name: Seed synthetic GL.iNet upgrade service section
+      community.openwrt.uci:
+        command: set
+        key: upgrade.general
+        value: service
+
+    - name: Seed GL.iNet Automatic Update Check enabled before converge
+      community.openwrt.uci:
+        command: set
+        key: upgrade.general.upgrade_enable
+        value: "1"
+
+    - name: Commit seeded upgrade UCI configuration
+      community.openwrt.uci:
+        command: commit
+        config: upgrade

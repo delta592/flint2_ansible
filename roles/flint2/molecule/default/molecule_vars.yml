@@ -1,6 +1,7 @@
 ---
 # Shared variables for Molecule converge and verify playbooks.
 flint2_hostname: molecule-flint2
+flint2_firmware_auto_update_check: "0"
 flint2_verify_glinet_settings: false
 flint2_verify_live_hostname: false
 flint2_verify_live_wireless: false
