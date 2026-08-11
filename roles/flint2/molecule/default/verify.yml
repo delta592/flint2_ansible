@@ -10,6 +10,24 @@
         name: flint2
         tasks_from: verify.yml
 
+    - name: Read GL.iNet firmware Automatic Update Check setting
+      when: flint2_firmware_auto_update_check is defined
+      community.openwrt.uci:
+        command: get
+        key: upgrade.general.upgrade_enable
+      register: flint2_molecule_verify_firmware_auto_update_check
+      changed_when: false
+
+    - name: Assert GL.iNet firmware Automatic Update Check matches desired value
+      when: flint2_firmware_auto_update_check is defined
+      ansible.builtin.assert:
+        that:
+          - flint2_molecule_verify_firmware_auto_update_check.result == flint2_firmware_auto_update_check
+        fail_msg: >-
+          upgrade.general.upgrade_enable is
+          '{{ flint2_molecule_verify_firmware_auto_update_check.result }}',
+          expected '{{ flint2_firmware_auto_update_check }}'
+
     - name: Read configured wireless encryption on main AP interfaces
       community.openwrt.uci:
         command: get

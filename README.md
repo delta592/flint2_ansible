@@ -113,7 +113,7 @@ Optional environment variables:
 | `MOLECULE_OPENWRT_REBUILD=true` | Force rebuild of the local 25.12.5 rootfs image |
 | `MOLECULE_OPENWRT_PRUNE_IMAGE=true` | Remove the local 25.12.5 image during `molecule destroy` |
 
-The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), then applies and verifies the `packages`, `system`, `ntp`, `wireless`, and `ssh` task files. TLS and GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
+The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`) and a GL.iNet-style `upgrade.general` section, then applies and verifies the `packages`, `system`, `ntp`, `wireless`, `upgrade`, and `ssh` task files. TLS and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
