@@ -31,6 +31,7 @@ It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25**
 | 5 GHz channel width | 160 MHz |
 | Security | WPA2-PSK/WPA3-SAE mixed mode (`sae-mixed`) |
 | NTP upstream | `pool.ntp.org` via `chronyd` |
+| Thermal monitoring | LuCI Statistics (`collectd-mod-thermal` / `collectd-mod-sensors`) |
 | LuCI time format | 24-Hour Clock (`system.@system[0].clock_hourcycle=h23`) |
 | GL.iNet UI | `https://wapap1003.federation.lcars/` (nginx, port 443) |
 | LuCI HTTP / HTTPS | ports `8080` / `8443` (uHTTPd) |
@@ -614,6 +615,7 @@ Confirm all of the following:
 - [x] SSID is `ARGUS`.
 - [x] Wi-Fi passphrase is stored in 1Password.
 - [x] NTP upstream is `pool.ntp.org` (chronyd).
+- [x] LuCI Statistics thermal graphs are available (**Statistics → Graphs**).
 - [x] Configuration backup has been created.
 
 ---
@@ -669,6 +671,7 @@ Partial targets automatically run the `always`-tagged UCI commit/apply step (for
 | `make system` | `system,always` | Hostname, 24-hour clock |
 | `make wireless` | `wireless,always` | ARGUS SSID and radio options |
 | `make ntp` | `ntp,always` | chronyd upstream NTP |
+| `make statistics` | `statistics,always` | LuCI Statistics thermal/sensors graphs |
 | `make access-control` | `access_control,luci,always` | Admin/LuCI ports, LuCI install |
 | `make tls` | `tls,always` | nginx + uHTTPd certificates |
 | `make ssh` | `ssh,always` | Dropbear hardening and keys |

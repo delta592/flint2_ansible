@@ -1,0 +1,84 @@
+---
+- name: Install Flint 2 statistics packages with apk
+  when:
+    - flint2_statistics_enabled | default(true) | bool
+    - flint2_statistics_packages | default([]) | length > 0
+    - openwrt_package_manager == "apk"
+  community.openwrt.apk:
+    name: "{{ flint2_statistics_packages | join(',') }}"
+    state: present
+    update_cache: true
+
+- name: Install Flint 2 statistics packages with opkg
+  when:
+    - flint2_statistics_enabled | default(true) | bool
+    - flint2_statistics_packages | default([]) | length > 0
+    - openwrt_package_manager == "opkg"
+  community.openwrt.opkg:
+    name: "{{ flint2_statistics_packages | join(',') }}"
+    state: present
+    update_cache: true
+
+- name: Configure LuCI Statistics collectd plugins
+  when: flint2_statistics_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      interval="{{ flint2_statistics_interval | default(30) }}"
+      plugins="{{ flint2_statistics_plugins | join(' ') }}"
+
+      if [ ! -f /etc/config/luci_statistics ]; then
+        echo "luci_statistics UCI config missing; install luci-app-statistics first" >&2
+        exit 1
+      fi
+
+      if ! uci -q get luci_statistics.collectd >/dev/null 2>&1; then
+        uci set luci_statistics.collectd=statistics
+        changed=1
+      fi
+
+      got_interval="$(uci -q get luci_statistics.collectd.Interval 2>/dev/null || true)"
+      if [ "$got_interval" != "$interval" ]; then
+        uci set luci_statistics.collectd.Interval="$interval"
+        changed=1
+      fi
+
+      for plugin in $plugins; do
+        if ! uci -q get luci_statistics."$plugin" >/dev/null 2>&1; then
+          uci set luci_statistics."$plugin"=statistics
+          changed=1
+        fi
+        got_enable="$(uci -q get luci_statistics."$plugin".enable 2>/dev/null || echo 0)"
+        if [ "$got_enable" != "1" ]; then
+          uci set luci_statistics."$plugin".enable='1'
+          changed=1
+        fi
+      done
+
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      fi
+    uses_shell: true
+  register: flint2_statistics_config
+  changed_when: flint2_statistics_config.stdout is search('changed')
+
+- name: Enable collectd and luci_statistics at boot
+  when: flint2_statistics_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      for svc in collectd luci_statistics; do
+        [ -x "/etc/init.d/${svc}" ] || continue
+        if ! "/etc/init.d/${svc}" enabled; then
+          "/etc/init.d/${svc}" enable
+          changed=1
+        fi
+      done
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      fi
+    uses_shell: true
+  register: flint2_statistics_enable
+  changed_when: flint2_statistics_enable.stdout is search('changed')

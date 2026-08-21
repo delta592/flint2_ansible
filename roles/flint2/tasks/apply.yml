@@ -24,6 +24,12 @@
       if [ -x /etc/init.d/uhttpd ]; then
         /etc/init.d/uhttpd restart
       fi
+      if [ -x /etc/init.d/luci_statistics ]; then
+        /etc/init.d/luci_statistics restart
+      fi
+      if [ -x /etc/init.d/collectd ]; then
+        /etc/init.d/collectd restart
+      fi
       if [ -x /etc/init.d/dropbear ]; then
         /etc/init.d/dropbear restart
       fi

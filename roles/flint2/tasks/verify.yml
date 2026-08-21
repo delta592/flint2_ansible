@@ -391,6 +391,127 @@
       LuCI is not reachable on HTTPS port {{ flint2_access_control.luci.https_port }}
       (expected login page, not uHTTPd 404).
 
+- name: Check LuCI Statistics frontend is installed
+  when: flint2_statistics_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: test -f /usr/share/luci/menu.d/luci-app-statistics.json
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_statistics_menu
+
+- name: Check collectd thermal and sensors plugins are installed
+  when: flint2_statistics_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      test -f /usr/lib/collectd/thermal.so
+      test -f /usr/lib/collectd/sensors.so
+      test -f /usr/lib/collectd/rrdtool.so
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_statistics_plugins
+
+- name: Assert LuCI Statistics packages are installed
+  when: flint2_statistics_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_statistics_menu.rc == 0
+      - flint2_verify_statistics_plugins.rc == 0
+    fail_msg: >-
+      LuCI Statistics is missing luci-app-statistics or collectd thermal/sensors/rrdtool
+      plugins. Run the statistics tag or install luci-app-statistics.
+
+- name: Read configured collectd plugin enablement
+  when: flint2_statistics_enabled | default(true) | bool
+  community.openwrt.uci:
+    command: get
+    key: "luci_statistics.{{ item }}.enable"
+  loop: "{{ flint2_statistics_plugins | default([]) }}"
+  register: flint2_verify_statistics_plugin_enable
+  changed_when: false
+
+- name: Assert collectd plugins are enabled
+  when:
+    - flint2_statistics_enabled | default(true) | bool
+    - flint2_verify_statistics_plugin_enable.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == "1"
+    fail_msg: >-
+      luci_statistics.{{ item.item }}.enable is '{{ item.result }}', expected '1'
+  loop: "{{ flint2_verify_statistics_plugin_enable.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Read configured collectd interval
+  when: flint2_statistics_enabled | default(true) | bool
+  community.openwrt.uci:
+    command: get
+    key: luci_statistics.collectd.Interval
+  register: flint2_verify_statistics_interval
+  changed_when: false
+
+- name: Assert collectd interval matches desired value
+  when: flint2_statistics_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_statistics_interval.result | int == flint2_statistics_interval | int
+    fail_msg: >-
+      luci_statistics.collectd.Interval is '{{ flint2_verify_statistics_interval.result }}',
+      expected '{{ flint2_statistics_interval }}'
+
+- name: Check collectd service is running
+  when: flint2_statistics_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      test -x /etc/init.d/collectd
+      /etc/init.d/collectd running
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_collectd_running
+
+- name: Assert collectd service is running
+  when: flint2_statistics_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_collectd_running.rc == 0
+    fail_msg: collectd is not running; thermal graphs will not update
+
+- name: Read SoC thermal zone temperature
+  when:
+    - flint2_statistics_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      zone=""
+      for path in /sys/class/thermal/thermal_zone*/temp; do
+        [ -r "$path" ] || continue
+        zone="$path"
+        break
+      done
+      test -n "$zone"
+      temp="$(cat "$zone")"
+      test "$temp" -gt 0
+      echo "$temp"
+    uses_shell: true
+  changed_when: false
+  register: flint2_verify_thermal_zone
+
+- name: Assert SoC thermal zone is readable
+  when:
+    - flint2_statistics_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_thermal_zone.rc == 0
+      - flint2_verify_thermal_zone.stdout | trim | int > 0
+    fail_msg: No readable /sys/class/thermal/thermal_zone*/temp value found
+
 - name: Read Dropbear SSH enablement
   when:
     - flint2_access_control_enabled | default(true) | bool

@@ -208,6 +208,11 @@ system: install
 ntp: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags ntp,always
 
+## Install LuCI Statistics and enable collectd thermal/sensors graphs
+.PHONY: statistics
+statistics: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags statistics,always
+
 ## Configure wireless networks only
 .PHONY: wireless
 wireless: install

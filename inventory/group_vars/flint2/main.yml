@@ -131,6 +131,21 @@ flint2_ntp:
   iburst: "1"
   enable_server: "0"
 
+# LuCI → Statistics → Graphs (collectd). Thermal zones on MT7986 appear after
+# the first Interval (30s). RRD data is stored in /tmp/rrd and resets on reboot.
+flint2_statistics_enabled: true
+flint2_statistics_packages:
+  - luci-app-statistics
+  - collectd
+  - collectd-mod-rrdtool
+  - collectd-mod-thermal
+  - collectd-mod-sensors
+flint2_statistics_plugins:
+  - collectd_rrdtool
+  - collectd_thermal
+  - collectd_sensors
+flint2_statistics_interval: 30
+
 flint2_ssh_authorized_keys:
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519.pub') }}"
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519_v002.pub') }}"

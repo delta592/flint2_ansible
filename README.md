@@ -10,6 +10,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 - **Firmware** — GL.iNet Automatic Update Check disabled (`upgrade.general.upgrade_enable=0`)
 - **Wireless** — 2.4 GHz and 5 GHz SSIDs via UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1` on OP25)
 - **LuCI** — installs bundled OP25 LuCI APKs, `uhttpd-mod-ucode`, and uHTTPd handler configuration
+- **Statistics** — LuCI Statistics (`collectd`) with thermal and sensors graphs under **Statistics → Graphs**
 - **Access Control** — GL.iNet admin panel, LuCI, and SSH ports, Force HTTPS, and auto-logout
 - **TLS** — private CA certificates on nginx (GL.iNet UI, port 443) and uHTTPd (LuCI, port 8443)
 - **SSH** — Dropbear hardening (password auth off) and `authorized_keys` management
@@ -199,6 +200,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
 | `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |
 | `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
+| `statistics` | `statistics.yml` | LuCI Statistics, collectd, and thermal/sensors plugins |
 | `tls` | `tls.yml` | Certificate deployment |
 | `ssh` | `ssh.yml` | Dropbear and authorized keys |
 | `always` | `apply.yml` | UCI commit and service restarts (runs with every partial Make target) |
@@ -212,6 +214,7 @@ Run a subset with Make or Ansible directly:
 make tls
 make ssh
 make access-control   # includes luci tag
+make statistics       # LuCI Statistics thermal graphs
 ansible-playbook playbooks/site.yml --tags wireless,tls,always
 ```
 

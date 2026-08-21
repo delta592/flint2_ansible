@@ -3,7 +3,7 @@ argument_specs:
   main:
     short_description: Configure a GL.iNet GL-MT6000 (Flint 2) running OpenWrt
     description:
-      - Apply system, wireless, TLS, SSH, and verification settings to a Flint 2 device.
+      - Apply system, wireless, TLS, SSH, statistics, and verification settings to a Flint 2 device.
       - GL.iNet-specific UCI keys are used where required; TLS and wireless checks can be disabled for test environments.
     author: delta592
     options:
@@ -318,3 +318,31 @@ argument_specs:
               - "0"
               - "1"
             description: system.ntp.enable_server for sysntpd LAN time serving.
+      flint2_statistics_enabled:
+        type: bool
+        default: true
+        description: >-
+          Install luci-app-statistics/collectd and enable thermal and sensors
+          plugins when true. Graphs appear in LuCI under Statistics → Graphs.
+      flint2_statistics_packages:
+        type: list
+        elements: str
+        default:
+          - luci-app-statistics
+          - collectd
+          - collectd-mod-rrdtool
+          - collectd-mod-thermal
+          - collectd-mod-sensors
+        description: Packages installed for LuCI Statistics and thermal collection.
+      flint2_statistics_plugins:
+        type: list
+        elements: str
+        default:
+          - collectd_rrdtool
+          - collectd_thermal
+          - collectd_sensors
+        description: luci_statistics UCI sections whose enable option is set to 1.
+      flint2_statistics_interval:
+        type: int
+        default: 30
+        description: collectd read interval in seconds (luci_statistics.collectd.Interval).

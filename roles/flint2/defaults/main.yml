@@ -80,6 +80,20 @@ flint2_ntp:
   iburst: "1"
   enable_server: "0"
 
+# LuCI Statistics (collectd) — thermal graphs at Statistics → Graphs
+flint2_statistics_enabled: true
+flint2_statistics_packages:
+  - luci-app-statistics
+  - collectd
+  - collectd-mod-rrdtool
+  - collectd-mod-thermal
+  - collectd-mod-sensors
+flint2_statistics_plugins:
+  - collectd_rrdtool
+  - collectd_thermal
+  - collectd_sensors
+flint2_statistics_interval: 30
+
 # Set false when verifying against vanilla OpenWrt (for example Molecule containers).
 flint2_verify_glinet_settings: true
 # Live runtime checks need a real router (Docker test containers cannot set kernel hostname or broadcast Wi-Fi).

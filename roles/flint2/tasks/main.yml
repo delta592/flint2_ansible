@@ -55,6 +55,13 @@
       tags: [access_control]
   tags: [access_control]
 
+- name: Install and configure LuCI Statistics thermal monitoring
+  ansible.builtin.include_tasks:
+    file: statistics.yml
+    apply:
+      tags: [statistics]
+  tags: [statistics]
+
 - name: Configure Flint 2 SSH access
   ansible.builtin.include_tasks:
     file: ssh.yml
