@@ -579,6 +579,41 @@
   loop_control:
     label: "{{ item.item.iface }}"
 
+- name: Read configured shared wireless interface options
+  when:
+    - item.0.iface is defined
+    - flint2_wireless[item.1] is defined
+  community.openwrt.uci:
+    command: get
+    key: "wireless.{{ item.0.iface }}.{{ item.1 }}"
+  loop: >-
+    {{
+      flint2_wireless.radios | default([])
+      | product(
+          flint2_wireless_iface_option_keys | default([])
+          | reject('equalto', 'key')
+          | reject('equalto', 'ssid')
+          | list
+        )
+      | list
+    }}
+  loop_control:
+    label: "{{ item.0.iface }}.{{ item.1 }}"
+  register: flint2_verify_wireless_iface_options
+  changed_when: false
+
+- name: Assert shared wireless interface options match desired values
+  when: flint2_verify_wireless_iface_options.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == flint2_wireless[item.item.1]
+    fail_msg: >-
+      wireless.{{ item.item.0.iface }}.{{ item.item.1 }} is '{{ item.result }}',
+      expected '{{ flint2_wireless[item.item.1] }}'
+  loop: "{{ flint2_verify_wireless_iface_options.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ item.item.0.iface }}.{{ item.item.1 }}"
+
 - name: Read live wireless SSID broadcast by each main AP interface
   when:
     - flint2_wireless.ssid is defined

@@ -17,10 +17,20 @@ flint2_wireless_device_option_keys:
   - legacy_rates
   - require_mode
 
+flint2_wireless_iface_option_keys:
+  - ssid
+  - encryption
+  - key
+  - ieee80211k
+  - bss_transition
+
 flint2_wireless:
   ssid: ARGUS
   encryption: sae-mixed
   key: ""
+  # 802.11k RRM + 802.11v BSS Transition Management (client-assisted steering)
+  ieee80211k: "1"
+  bss_transition: "1"
   radios: []
 
 flint2_wireless_guest_ifaces: []

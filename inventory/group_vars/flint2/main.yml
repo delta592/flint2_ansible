@@ -53,6 +53,8 @@ flint2_wireless_iface_option_keys:
   - ssid
   - encryption
   - key
+  - ieee80211k
+  - bss_transition
 
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
@@ -62,6 +64,9 @@ flint2_wireless:
   ssid: ARGUS
   encryption: sae-mixed
   key: "{{ lookup('ansible.builtin.file', flint2_secrets_dir + '/' + flint2_wireless_key_file) | trim }}"
+  # 802.11k neighbor/beacon reports + 802.11v BSS Transition Management
+  ieee80211k: "1"
+  bss_transition: "1"
   radios:
     # GL.iNet Mode 11n/ax — 20/40 MHz (UCI htmode HE40); require_mode n excludes 802.11g-only clients
     - device: radio0

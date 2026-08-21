@@ -139,7 +139,7 @@ inventory/group_vars/flint2/
   vault.yml.example
 ```
 
-The wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). The file should contain the passphrase alone on one line.
+The wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). The file should contain the passphrase alone on one line. The same inventory enables `ieee80211k` and `bss_transition` on the main ARGUS interfaces for 802.11k RRM and 802.11v BSS Transition.
 
 ### Bootstrap SSH (first run after reset)
 

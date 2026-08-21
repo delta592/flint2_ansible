@@ -415,6 +415,21 @@ WPA2-PSK/WPA3-SAE mixed mode
 
 This permits newer clients to use WPA3-SAE while retaining WPA2 compatibility.
 
+### 802.11k / 802.11v BSS Transition
+
+Both main ARGUS interfaces (`default_radio0` / `default_radio1`) enable:
+
+```text
+ieee80211k: 1
+bss_transition: 1
+```
+
+- **802.11k** advertises Radio Resource Measurement (neighbor and beacon reports) so clients can discover better BSS candidates.
+- **802.11v BSS Transition** lets the AP request that a client move to another BSS (for example 2.4 GHz ↔ 5 GHz on the same SSID).
+
+Ansible applies these via `flint2_wireless.ieee80211k` and `flint2_wireless.bss_transition` in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml). This enables client-assisted steering.
+
+
 LuCI also exposed:
 
 ```text

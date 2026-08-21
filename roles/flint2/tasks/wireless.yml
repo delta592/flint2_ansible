@@ -11,42 +11,17 @@
   loop_control:
     label: "{{ item.0.device }}.{{ item.1 }}={{ item.0.get(item.1, '') }}"
 
-- name: Configure wireless SSID on main AP interfaces
+- name: Configure wireless options on main AP interfaces
   when:
     - flint2_wireless.radios | default([]) | length > 0
-    - flint2_wireless.ssid is defined
-    - item.iface is defined
+    - item.0.iface is defined
+    - flint2_wireless[item.1] is defined
+    - item.1 != 'key' or (flint2_wireless.key | default('') | length > 0)
   community.openwrt.uci:
     command: set
-    key: "wireless.{{ item.iface }}.ssid"
-    value: "{{ flint2_wireless.ssid }}"
-  loop: "{{ flint2_wireless.radios }}"
+    key: "wireless.{{ item.0.iface }}.{{ item.1 }}"
+    value: "{{ flint2_wireless[item.1] }}"
+  loop: "{{ flint2_wireless.radios | product(flint2_wireless_iface_option_keys) | list }}"
   loop_control:
-    label: "{{ item.iface }}"
-
-- name: Configure wireless encryption on main AP interfaces
-  when:
-    - flint2_wireless.radios | default([]) | length > 0
-    - flint2_wireless.encryption is defined
-    - item.iface is defined
-  community.openwrt.uci:
-    command: set
-    key: "wireless.{{ item.iface }}.encryption"
-    value: "{{ flint2_wireless.encryption }}"
-  loop: "{{ flint2_wireless.radios }}"
-  loop_control:
-    label: "{{ item.iface }}"
-
-- name: Configure wireless passphrase on main AP interfaces
-  when:
-    - flint2_wireless.radios | default([]) | length > 0
-    - flint2_wireless.key | default('') | length > 0
-    - item.iface is defined
-  community.openwrt.uci:
-    command: set
-    key: "wireless.{{ item.iface }}.key"
-    value: "{{ flint2_wireless.key }}"
-  loop: "{{ flint2_wireless.radios }}"
-  loop_control:
-    label: "{{ item.iface }}"
-  no_log: true
+    label: "{{ item.0.iface }}.{{ item.1 }}"
+  no_log: "{{ item.1 == 'key' }}"
