@@ -30,6 +30,9 @@
       if [ -x /etc/init.d/collectd ]; then
         /etc/init.d/collectd restart
       fi
+      if [ -x /etc/init.d/usteer ]; then
+        /etc/init.d/usteer restart
+      fi
       if [ -x /etc/init.d/dropbear ]; then
         /etc/init.d/dropbear restart
       fi

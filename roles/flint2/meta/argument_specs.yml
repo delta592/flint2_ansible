@@ -368,3 +368,73 @@ argument_specs:
         type: int
         default: 30
         description: collectd read interval in seconds (luci_statistics.collectd.Interval).
+      flint2_usteer_enabled:
+        type: bool
+        default: true
+        description: >-
+          Install and configure usteer for active AP-side band steering when true.
+          Requires flint2_wireless.ieee80211k and bss_transition to be enabled.
+      flint2_usteer_packages:
+        type: list
+        elements: str
+        default:
+          - usteer
+          - luci-app-usteer
+        description: Packages installed for usteer and its LuCI app.
+      flint2_usteer:
+        type: dict
+        description: usteer UCI settings for band steering on the main SSIDs.
+        options:
+          network:
+            type: str
+            default: lan
+            description: Logical network used for inter-AP usteer communication.
+          local_mode:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              Disable remote AP exchange when "1" (typical for a single AP doing
+              2.4/5 GHz band steering). Use "0" when coordinating multiple APs.
+          syslog:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: Log usteer messages to syslog.
+          debug_level:
+            type: str
+            default: "2"
+            description: usteer log verbosity (0=fatal … 5=all debug).
+          ipv6:
+            type: str
+            default: "0"
+            choices:
+              - "0"
+              - "1"
+            description: Use IPv6 for remote usteer exchange.
+          band_steering_interval:
+            type: str
+            default: "30000"
+            description: >-
+              Attempt to steer clients to a higher frequency band every N ms.
+              Use "0" to disable band steering.
+          band_steering_min_snr:
+            type: str
+            default: "-60"
+            description: >-
+              Minimum SNR/signal (dBm) a client must sustain over
+              band_steering_interval before being steered upward in band.
+          band_steering_threshold:
+            type: str
+            default: "1"
+            description: Minimum station-count delta between bands before steering.
+          ssid_list:
+            type: list
+            elements: str
+            default: []
+            description: >-
+              SSIDs to steer. When empty, flint2_wireless.ssid is used.

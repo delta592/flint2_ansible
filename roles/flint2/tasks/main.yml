@@ -34,6 +34,13 @@
       tags: [wireless]
   tags: [wireless]
 
+- name: Install and configure usteer active AP-side steering
+  ansible.builtin.include_tasks:
+    file: usteer.yml
+    apply:
+      tags: [usteer, wireless]
+  tags: [usteer, wireless]
+
 - name: Install Flint 2 TLS certificates
   ansible.builtin.include_tasks:
     file: tls.yml

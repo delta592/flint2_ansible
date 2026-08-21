@@ -8,6 +8,7 @@ flint2_verify_live_wireless: false
 flint2_luci_enabled: false
 flint2_access_control_enabled: false
 flint2_statistics_enabled: false
+flint2_usteer_enabled: false
 flint2_lan_proto: static
 flint2_tls_enabled: false
 flint2_tls_verify_endpoints: false

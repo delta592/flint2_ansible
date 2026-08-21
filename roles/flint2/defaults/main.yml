@@ -104,6 +104,25 @@ flint2_statistics_plugins:
   - collectd_sensors
 flint2_statistics_interval: 30
 
+# Active AP-side steering (usteer) — requires ieee80211k + bss_transition on wifi-ifaces
+flint2_usteer_enabled: true
+flint2_usteer_packages:
+  - usteer
+  - luci-app-usteer
+flint2_usteer:
+  network: lan
+  # Single-AP band steering; set "0" when coordinating multiple APs over the LAN
+  local_mode: "1"
+  syslog: "1"
+  debug_level: "2"
+  ipv6: "0"
+  # Steer clients to a higher band every N ms (0 disables band steering)
+  band_steering_interval: "30000"
+  band_steering_min_snr: "-60"
+  band_steering_threshold: "1"
+  # SSIDs to steer; defaults to flint2_wireless.ssid when empty
+  ssid_list: []
+
 # Set false when verifying against vanilla OpenWrt (for example Molecule containers).
 flint2_verify_glinet_settings: true
 # Live runtime checks need a real router (Docker test containers cannot set kernel hostname or broadcast Wi-Fi).

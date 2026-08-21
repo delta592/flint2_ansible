@@ -139,7 +139,7 @@ inventory/group_vars/flint2/
   vault.yml.example
 ```
 
-The wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). The file should contain the passphrase alone on one line. The same inventory enables `ieee80211k` and `bss_transition` on the main ARGUS interfaces for 802.11k RRM and 802.11v BSS Transition.
+The wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). The file should contain the passphrase alone on one line. The same inventory enables `ieee80211k` / `bss_transition` and installs **usteer** for active AP-side band steering (`make usteer`).
 
 ### Bootstrap SSH (first run after reset)
 
@@ -198,6 +198,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `upgrade` | `upgrade.yml` | GL.iNet Automatic Update Check (`upgrade.general.upgrade_enable`) |
 | `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
 | `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
+| `usteer` | `usteer.yml` | Active AP-side band steering (usteer + luci-app-usteer) |
 | `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |
 | `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
 | `statistics` | `statistics.yml` | LuCI Statistics, collectd, and thermal/sensors plugins |
@@ -215,6 +216,7 @@ make tls
 make ssh
 make access-control   # includes luci tag
 make statistics       # LuCI Statistics thermal graphs
+make usteer           # active AP-side band steering
 ansible-playbook playbooks/site.yml --tags wireless,tls,always
 ```
 

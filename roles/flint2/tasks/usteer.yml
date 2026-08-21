@@ -1,0 +1,131 @@
+---
+- name: Install Flint 2 usteer packages with apk
+  when:
+    - flint2_usteer_enabled | default(true) | bool
+    - flint2_usteer_packages | default([]) | length > 0
+    - openwrt_package_manager == "apk"
+  community.openwrt.apk:
+    name: "{{ flint2_usteer_packages | join(',') }}"
+    state: present
+    update_cache: true
+  register: flint2_usteer_apk
+
+- name: Install Flint 2 usteer packages with opkg
+  when:
+    - flint2_usteer_enabled | default(true) | bool
+    - flint2_usteer_packages | default([]) | length > 0
+    - openwrt_package_manager == "opkg"
+  community.openwrt.opkg:
+    name: "{{ flint2_usteer_packages | join(',') }}"
+    state: present
+    update_cache: true
+  register: flint2_usteer_opkg
+
+- name: Configure usteer active AP-side steering
+  when: flint2_usteer_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      network="{{ flint2_usteer.network | default('lan') }}"
+      local_mode="{{ flint2_usteer.local_mode | default('1') }}"
+      syslog="{{ flint2_usteer.syslog | default('1') }}"
+      debug_level="{{ flint2_usteer.debug_level | default('2') }}"
+      ipv6="{{ flint2_usteer.ipv6 | default('0') }}"
+      band_steering_interval="{{ flint2_usteer.band_steering_interval | default('30000') }}"
+      band_steering_min_snr="{{ flint2_usteer.band_steering_min_snr | default('-60') }}"
+      band_steering_threshold="{{ flint2_usteer.band_steering_threshold | default('1') }}"
+      ssids="{{ (flint2_usteer.ssid_list | default([]) | length > 0)
+                | ternary(flint2_usteer.ssid_list | join(' '), flint2_wireless.ssid | default('')) }}"
+
+      if [ -z "$ssids" ]; then
+        echo "usteer ssid_list is empty and flint2_wireless.ssid is unset" >&2
+        exit 1
+      fi
+
+      if [ ! -f /etc/config/usteer ]; then
+        touch /etc/config/usteer
+        changed=1
+      fi
+
+      if ! uci -q get usteer.@usteer[0] >/dev/null 2>&1; then
+        uci add usteer usteer >/dev/null
+        changed=1
+      fi
+
+      set_opt() {
+        key="$1"
+        want="$2"
+        got="$(uci -q get "usteer.@usteer[0].${key}" 2>/dev/null || true)"
+        if [ "$got" != "$want" ]; then
+          uci set "usteer.@usteer[0].${key}=$want"
+          changed=1
+        fi
+      }
+
+      set_opt network "$network"
+      set_opt local_mode "$local_mode"
+      set_opt syslog "$syslog"
+      set_opt debug_level "$debug_level"
+      set_opt ipv6 "$ipv6"
+      set_opt band_steering_interval "$band_steering_interval"
+      set_opt band_steering_min_snr "$band_steering_min_snr"
+      set_opt band_steering_threshold "$band_steering_threshold"
+
+      got_ssids="$(uci -q get usteer.@usteer[0].ssid_list 2>/dev/null || true)"
+      want_ssids="$(printf '%s\n' $ssids | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+      got_norm="$(printf '%s\n' $got_ssids | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+      if [ "$got_norm" != "$want_ssids" ]; then
+        while uci -q delete usteer.@usteer[0].ssid_list 2>/dev/null; do :; done
+        for ssid in $ssids; do
+          uci add_list usteer.@usteer[0].ssid_list="$ssid"
+        done
+        changed=1
+      fi
+
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      fi
+    uses_shell: true
+  register: flint2_usteer_config
+  changed_when: flint2_usteer_config.stdout is search('changed')
+
+- name: Enable usteer at boot
+  when: flint2_usteer_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      if [ ! -x /etc/init.d/usteer ]; then
+        echo "usteer init script missing; install the usteer package first" >&2
+        exit 1
+      fi
+      if ! /etc/init.d/usteer enabled; then
+        /etc/init.d/usteer enable
+        changed=1
+      fi
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      fi
+    uses_shell: true
+  register: flint2_usteer_enable
+  changed_when: flint2_usteer_enable.stdout is search('changed')
+
+# New luci-app-* packages need a cache flush + rpcd restart before the menu appears.
+- name: Clear LuCI cache and restart rpcd/uhttpd for usteer menu
+  when: flint2_usteer_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      rm -f /tmp/luci-indexcache*
+      rm -rf /tmp/luci-modulecache
+      if [ -x /etc/init.d/rpcd ]; then
+        /etc/init.d/rpcd restart
+      fi
+      if [ -x /etc/init.d/uhttpd ]; then
+        /etc/init.d/uhttpd restart
+      fi
+      echo changed
+    uses_shell: true
+  register: flint2_usteer_luci_refresh
+  changed_when: flint2_usteer_luci_refresh.stdout is search('changed')

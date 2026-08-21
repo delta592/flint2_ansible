@@ -512,6 +512,124 @@
       - flint2_verify_thermal_zone.stdout | trim | int > 0
     fail_msg: No readable /sys/class/thermal/thermal_zone*/temp value found
 
+- name: Check usteer package and init script are installed
+  when: flint2_usteer_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      test -x /etc/init.d/usteer
+      test -f /etc/config/usteer
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_usteer_installed
+
+- name: Assert usteer is installed
+  when: flint2_usteer_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_usteer_installed.rc == 0
+    fail_msg: >-
+      usteer is not installed. Run the usteer tag (make usteer) or install the
+      usteer package from device feeds.
+
+- name: Check luci-app-usteer menu is present
+  when:
+    - flint2_usteer_enabled | default(true) | bool
+    - "'luci-app-usteer' in (flint2_usteer_packages | default([]))"
+  community.openwrt.command:
+    cmd: test -f /usr/share/luci/menu.d/luci-app-usteer.json
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_usteer_luci_menu
+
+- name: Assert luci-app-usteer menu file is installed
+  when:
+    - flint2_usteer_enabled | default(true) | bool
+    - "'luci-app-usteer' in (flint2_usteer_packages | default([]))"
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_usteer_luci_menu.rc == 0
+    fail_msg: >-
+      luci-app-usteer menu is missing
+      (/usr/share/luci/menu.d/luci-app-usteer.json). Install luci-app-usteer
+      and re-run make usteer so LuCI cache is cleared.
+
+- name: Read configured usteer options
+  when: flint2_usteer_enabled | default(true) | bool
+  community.openwrt.uci:
+    command: get
+    key: "usteer.@usteer[0].{{ item }}"
+  loop:
+    - network
+    - local_mode
+    - band_steering_interval
+    - band_steering_min_snr
+    - band_steering_threshold
+  register: flint2_verify_usteer_options
+  changed_when: false
+
+- name: Assert usteer options match desired values
+  when:
+    - flint2_usteer_enabled | default(true) | bool
+    - flint2_verify_usteer_options.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == flint2_usteer[item.item] | string
+    fail_msg: >-
+      usteer.@usteer[0].{{ item.item }} is '{{ item.result }}',
+      expected '{{ flint2_usteer[item.item] }}'
+  loop: "{{ flint2_verify_usteer_options.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Read configured usteer SSID list
+  when: flint2_usteer_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      uci -q get usteer.@usteer[0].ssid_list
+    uses_shell: true
+  register: flint2_verify_usteer_ssid_list
+  changed_when: false
+
+- name: Assert usteer SSID list includes the main wireless SSID
+  when: flint2_usteer_enabled | default(true) | bool
+  vars:
+    flint2_usteer_expected_ssids: >-
+      {{
+        flint2_usteer.ssid_list
+        if (flint2_usteer.ssid_list | default([]) | length > 0)
+        else ([flint2_wireless.ssid] if flint2_wireless.ssid is defined else [])
+      }}
+    flint2_usteer_got_ssids: "{{ flint2_verify_usteer_ssid_list.stdout | trim | split }}"
+  ansible.builtin.assert:
+    that:
+      - flint2_usteer_got_ssids | sort == flint2_usteer_expected_ssids | list | sort
+    fail_msg: >-
+      usteer.@usteer[0].ssid_list is '{{ flint2_usteer_got_ssids }}',
+      expected '{{ flint2_usteer_expected_ssids }}'
+
+- name: Check usteer service is running
+  when: flint2_usteer_enabled | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      test -x /etc/init.d/usteer
+      /etc/init.d/usteer running
+    uses_shell: true
+  changed_when: false
+  failed_when: false
+  register: flint2_verify_usteer_running
+
+- name: Assert usteer service is running
+  when: flint2_usteer_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_usteer_running.rc == 0
+    fail_msg: usteer is not running; active AP-side steering will not occur
+
 - name: Read Dropbear SSH enablement
   when:
     - flint2_access_control_enabled | default(true) | bool
@@ -624,7 +742,8 @@
       set -euo pipefail
       ifname="$(uci -q get "wireless.{{ item.iface }}.ifname" 2>/dev/null || true)"
       if [ -z "$ifname" ]; then
-        ifname="$(ubus call network.wireless status 2>/dev/null | jsonfilter -e '@.{{ item.device }}.interfaces[@.section="{{ item.iface }}"].ifname' 2>/dev/null || true)"
+        expr='@.{{ item.device }}.interfaces[@.section="{{ item.iface }}"].ifname'
+        ifname="$(ubus call network.wireless status 2>/dev/null | jsonfilter -e "$expr" 2>/dev/null || true)"
       fi
       test -n "$ifname"
       iwinfo "$ifname" info | awk -F '"' '/ESSID/ {print $2; exit}'

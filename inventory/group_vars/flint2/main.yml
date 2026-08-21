@@ -151,6 +151,24 @@ flint2_statistics_plugins:
   - collectd_sensors
 flint2_statistics_interval: 30
 
+# Active AP-side band steering via usteer (needs ieee80211k + bss_transition above).
+# Installs usteer + luci-app-usteer from the device package feeds (apk on OP25).
+flint2_usteer_enabled: true
+flint2_usteer_packages:
+  - usteer
+  - luci-app-usteer
+flint2_usteer:
+  network: lan
+  local_mode: "1"
+  syslog: "1"
+  debug_level: "2"
+  ipv6: "0"
+  band_steering_interval: "30000"
+  band_steering_min_snr: "-60"
+  band_steering_threshold: "1"
+  # Empty → use flint2_wireless.ssid (ARGUS)
+  ssid_list: []
+
 flint2_ssh_authorized_keys:
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519.pub') }}"
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519_v002.pub') }}"

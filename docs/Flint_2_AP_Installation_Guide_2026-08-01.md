@@ -427,8 +427,23 @@ bss_transition: 1
 - **802.11k** advertises Radio Resource Measurement (neighbor and beacon reports) so clients can discover better BSS candidates.
 - **802.11v BSS Transition** lets the AP request that a client move to another BSS (for example 2.4 GHz ↔ 5 GHz on the same SSID).
 
-Ansible applies these via `flint2_wireless.ieee80211k` and `flint2_wireless.bss_transition` in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml). This enables client-assisted steering.
+Ansible applies these via `flint2_wireless.ieee80211k` and `flint2_wireless.bss_transition` in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml).
 
+### Active AP-side steering (usteer)
+
+GL.iNet stock firmware does not include band steering. Ansible installs OpenWrt **usteer** (plus optional **luci-app-usteer**) and configures it for single-AP 2.4/5 GHz steering on the ARGUS SSID:
+
+```text
+network: lan
+local_mode: 1
+band_steering_interval: 30000
+band_steering_min_snr: -60
+ssid_list: ARGUS
+```
+
+`local_mode: 1` disables multi-AP coordination (appropriate for one Flint 2). Set `local_mode: 0` if additional OpenWrt APs should exchange steering state over the LAN.
+
+Apply with `make usteer` (or `make wireless`, which includes the usteer tag). Package install requires `usteer` / `luci-app-usteer` to be available in the device feeds (`apk` on OP25). After install, Ansible clears the LuCI index/module cache and restarts `rpcd` / `uhttpd` so **Network → Usteer** appears without a manual LuCI cache flush.
 
 LuCI also exposed:
 
@@ -684,7 +699,8 @@ Partial targets automatically run the `always`-tagged UCI commit/apply step (for
 | Make target | Ansible tags | Purpose |
 |---|---|---|
 | `make system` | `system,always` | Hostname, 24-hour clock |
-| `make wireless` | `wireless,always` | ARGUS SSID and radio options |
+| `make wireless` | `wireless,always` | ARGUS SSID, radio options, and usteer (usteer tag included) |
+| `make usteer` | `usteer,always` | Install/configure usteer active band steering |
 | `make ntp` | `ntp,always` | chronyd upstream NTP |
 | `make statistics` | `statistics,always` | LuCI Statistics thermal/sensors graphs |
 | `make access-control` | `access_control,luci,always` | Admin/LuCI ports, LuCI install |

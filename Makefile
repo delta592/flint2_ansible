@@ -213,6 +213,11 @@ ntp: install
 statistics: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags statistics,always
 
+## Install usteer and enable active AP-side band steering
+.PHONY: usteer
+usteer: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags usteer,always
+
 ## Configure wireless networks only
 .PHONY: wireless
 wireless: install
