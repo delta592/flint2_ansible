@@ -1,4 +1,5 @@
 ---
-# UCI commit and service restarts are applied synchronously by tasks/apply.yml
-# before verification. community.openwrt.common handlers (Reload wifi, Restart
-# network, etc.) are registered by community.openwrt.init in playbooks/site.yml.
+# UCI commit (community.openwrt.uci + uci commit) and service restarts are
+# applied synchronously by tasks/apply.yml before verification.
+# community.openwrt.common handlers (Reload wifi, Restart network, etc.) are
+# registered by community.openwrt.init in playbooks/site.yml.

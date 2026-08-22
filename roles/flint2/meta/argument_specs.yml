@@ -69,9 +69,11 @@ argument_specs:
           - key
           - ieee80211k
           - bss_transition
+          - wpa_group_rekey
         description: >-
           Shared wifi-iface option keys copied from flint2_wireless onto each
-          main AP interface (ssid, encryption, key, ieee80211k, bss_transition).
+          main AP interface (ssid, encryption, key, ieee80211k, bss_transition,
+          wpa_group_rekey).
       flint2_wireless:
         type: dict
         description: Wireless SSID, encryption, key, roaming aids, and per-radio device settings.
@@ -104,6 +106,12 @@ argument_specs:
             description: >-
               Enable 802.11v BSS Transition Management on main AP interfaces
               so clients can be steered between BSS/radios.
+          wpa_group_rekey:
+            type: str
+            default: "86400"
+            description: >-
+              GTK rekeying interval in seconds (LuCI Network → Wireless →
+              GTK rekeying; UCI wireless.<iface>.wpa_group_rekey).
           radios:
             type: list
             elements: dict

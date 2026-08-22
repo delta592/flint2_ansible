@@ -23,6 +23,7 @@ flint2_wireless_iface_option_keys:
   - key
   - ieee80211k
   - bss_transition
+  - wpa_group_rekey
 
 flint2_wireless:
   ssid: ARGUS
@@ -31,6 +32,8 @@ flint2_wireless:
   # 802.11k RRM + 802.11v BSS Transition Management (client-assisted steering)
   ieee80211k: "1"
   bss_transition: "1"
+  # LuCI GTK rekeying (seconds); hostapd wpa_group_rekey
+  wpa_group_rekey: "86400"
   radios: []
 
 flint2_wireless_guest_ifaces: []

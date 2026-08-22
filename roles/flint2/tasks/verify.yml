@@ -1,4 +1,19 @@
 ---
+- name: Read pending UCI overlay
+  community.openwrt.uci:
+    command: changes
+  register: flint2_verify_uci_pending
+  changed_when: false
+
+- name: Assert UCI overlay has been committed
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_uci_pending.result | default('') | trim | length == 0
+    fail_msg: >-
+      Uncommitted UCI changes remain:
+      {{ flint2_verify_uci_pending.result }}.
+      Apply must run uci commit before verification.
+
 - name: Read configured system hostname
   community.openwrt.uci:
     command: get

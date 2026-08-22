@@ -1,13 +1,25 @@
 ---
-- name: Commit all UCI configuration and restart affected services
+# Always persist the UCI overlay. Do not gate commit on
+# `uci changes | grep -q` under `set -o pipefail`: grep -q closes the pipe on
+# the first match, `uci` gets SIGPIPE, and the commit is skipped while wifi
+# reload still runs against the uncommitted overlay.
+- name: Commit all pending UCI configuration
+  tags: [always]
+  community.openwrt.uci:
+    command: commit
+  register: flint2_uci_commit
+
+- name: Reload services after UCI apply
   tags: [always]
   community.openwrt.command:
     cmd: |
-      set -euo pipefail
-      changed=0
-      if uci changes | grep -q .; then
-        uci commit
-        changed=1
+      set -eu
+      uci commit
+      remaining="$(uci changes 2>/dev/null || true)"
+      if [ -n "$remaining" ]; then
+        echo "uci commit left pending changes:" >&2
+        echo "$remaining" >&2
+        exit 1
       fi
       /etc/init.d/system reload
       if [ -x /sbin/wifi ] && [ -f /etc/config/wireless ]; then
@@ -36,9 +48,6 @@
       if [ -x /etc/init.d/dropbear ]; then
         /etc/init.d/dropbear restart
       fi
-      if [ "$changed" -eq 1 ]; then
-        echo changed
-      fi
     uses_shell: true
   register: flint2_apply
-  changed_when: flint2_apply.stdout is search('changed')
+  changed_when: flint2_uci_commit is changed

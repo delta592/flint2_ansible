@@ -113,10 +113,14 @@
 
 # New luci-app-* packages need a cache flush + rpcd restart before the menu appears.
 - name: Clear LuCI cache and restart rpcd/uhttpd for usteer menu
-  when: flint2_usteer_enabled | default(true) | bool
+  when:
+    - flint2_usteer_enabled | default(true) | bool
+    - >-
+      (flint2_usteer_apk is defined and flint2_usteer_apk is changed)
+      or (flint2_usteer_opkg is defined and flint2_usteer_opkg is changed)
   community.openwrt.command:
     cmd: |
-      set -euo pipefail
+      set -eu
       rm -f /tmp/luci-indexcache*
       rm -rf /tmp/luci-modulecache
       if [ -x /etc/init.d/rpcd ]; then
@@ -125,7 +129,5 @@
       if [ -x /etc/init.d/uhttpd ]; then
         /etc/init.d/uhttpd restart
       fi
-      echo changed
     uses_shell: true
-  register: flint2_usteer_luci_refresh
-  changed_when: flint2_usteer_luci_refresh.stdout is search('changed')
+  changed_when: true
