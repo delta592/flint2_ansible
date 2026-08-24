@@ -131,6 +131,15 @@ flint2_tls_verify_endpoints: true
 flint2_tls_verify_from_client: true
 flint2_tls_verify_host: "{{ flint2_fqdn }}"
 
+# F-07 / F-09: HSTS + security headers in gl-conf.d (accept vendor nginx user root)
+flint2_nginx_hardening_enabled: true
+flint2_nginx_gl_conf_d: /etc/nginx/gl-conf.d
+flint2_nginx_security_conf_name: flint2-security-headers.conf
+flint2_nginx_security_lua_path: /usr/share/gl-ngx/flint2-security-headers.lua
+flint2_nginx_server_tokens: "off"
+flint2_nginx_hsts_max_age: 63072000
+flint2_nginx_verify_headers: true
+
 # GL.iNet UI → System → Access Control (live values on wapap1003, 2026-08-02)
 flint2_access_control_enabled: true
 flint2_nginx_gl_conf: /etc/nginx/conf.d/gl.conf

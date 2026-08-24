@@ -1,0 +1,13 @@
+# Managed by flint2_ansible (F-07 / F-09). Do not edit by hand.
+# Included from the GL.iNet admin server block via include /etc/nginx/gl-conf.d/*.conf;
+#
+# F-07 accepted risk: vendor nginx.conf keeps `user root;` because the Lua/ubus
+# admin API depends on it. This snippet only adds headers and hides the version.
+#
+# Vendor locations already set add_header (e.g. X-Frame-Options), so server-level
+# add_header is not inherited. Use header_filter_by_lua_file instead.
+# This build defines NGX_LUA_NO_BY_LUA_BLOCK, so *_by_lua_block is unavailable.
+
+server_tokens {{ flint2_nginx_server_tokens }};
+
+header_filter_by_lua_file {{ flint2_nginx_security_lua_path }};

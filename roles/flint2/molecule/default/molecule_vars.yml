@@ -13,6 +13,8 @@ flint2_lan_proto: static
 flint2_tls_enabled: false
 flint2_tls_verify_endpoints: false
 flint2_tls_verify_from_client: false
+flint2_nginx_hardening_enabled: false
+flint2_nginx_verify_headers: false
 flint2_ssh_authorized_keys:
   - >-
     ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG1vbGVjdWxlLXRlc3Qta2V5

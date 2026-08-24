@@ -320,6 +320,40 @@ argument_specs:
         type: path
         default: /etc/nginx/conf.d/gl.conf
         description: nginx configuration file containing GL.iNet admin panel listen directives.
+      flint2_nginx_hardening_enabled:
+        type: bool
+        default: true
+        description: >-
+          Deploy F-07/F-09 security headers and server_tokens into gl-conf.d when true.
+          Does not change vendor nginx `user root;` (accepted risk).
+      flint2_nginx_gl_conf_d:
+        type: path
+        default: /etc/nginx/gl-conf.d
+        description: Directory included by the GL.iNet admin server block for extra snippets.
+      flint2_nginx_security_conf_name:
+        type: str
+        default: flint2-security-headers.conf
+        description: Filename written under flint2_nginx_gl_conf_d for managed security headers.
+      flint2_nginx_security_lua_path:
+        type: path
+        default: /usr/share/gl-ngx/flint2-security-headers.lua
+        description: >-
+          Lua file for header_filter_by_lua_file. Required because GL.iNet nginx is
+          built with NGX_LUA_NO_BY_LUA_BLOCK (inline *_by_lua_block is unavailable).
+      flint2_nginx_server_tokens:
+        type: str
+        default: "off"
+        description: Value for nginx server_tokens in the managed gl-conf.d snippet.
+      flint2_nginx_hsts_max_age:
+        type: int
+        default: 63072000
+        description: Strict-Transport-Security max-age in seconds (default two years).
+      flint2_nginx_verify_headers:
+        type: bool
+        default: true
+        description: >-
+          When true, verify checks the managed snippet on-device and HTTPS response headers
+          from the control node (requires reachability to the admin HTTPS port).
       flint2_access_control:
         type: dict
         description: GL.iNet Access Control page settings for admin panel, LuCI, and SSH.

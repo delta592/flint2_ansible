@@ -48,6 +48,13 @@
       tags: [tls]
   tags: [tls]
 
+- name: Harden GL.iNet nginx admin stack
+  ansible.builtin.include_tasks:
+    file: nginx.yml
+    apply:
+      tags: [nginx]
+  tags: [nginx]
+
 - name: Ensure LuCI is installed and configured
   ansible.builtin.include_tasks:
     file: luci.yml

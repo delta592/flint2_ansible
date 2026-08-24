@@ -1,0 +1,9 @@
+-- Managed by flint2_ansible (F-07 / F-09). Do not edit by hand.
+-- Loaded via header_filter_by_lua_file from gl-conf.d.
+-- GL.iNet nginx is built with -DNGX_LUA_NO_BY_LUA_BLOCK, so *_by_lua_block
+-- directives are unavailable; use this external file instead.
+
+ngx.header["Strict-Transport-Security"] = "max-age={{ flint2_nginx_hsts_max_age }}"
+ngx.header["X-Content-Type-Options"] = "nosniff"
+ngx.header["Referrer-Policy"] = "strict-origin-when-cross-origin"
+ngx.header["X-Frame-Options"] = "DENY"

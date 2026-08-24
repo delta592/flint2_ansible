@@ -233,6 +233,11 @@ access-control: install
 tls: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags tls,always
 
+## Harden GL.iNet nginx admin headers (HSTS / security headers)
+.PHONY: nginx
+nginx: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags nginx,always
+
 ## Configure Dropbear and authorized_keys
 .PHONY: ssh
 ssh: install

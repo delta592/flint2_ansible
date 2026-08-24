@@ -1,0 +1,46 @@
+---
+# F-07 / F-09: harden the GL.iNet nginx admin stack via gl-conf.d (server include).
+# Does not change vendor `user root;` — accepted risk (Lua/ubus admin API).
+# Headers use header_filter_by_lua_file (NGX_LUA_NO_BY_LUA_BLOCK on GL.iNet).
+
+- name: Ensure nginx gl-conf.d directory exists
+  when: flint2_nginx_hardening_enabled | default(true) | bool
+  community.openwrt.file:
+    path: "{{ flint2_nginx_gl_conf_d }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure nginx security Lua directory exists
+  when: flint2_nginx_hardening_enabled | default(true) | bool
+  community.openwrt.file:
+    path: "{{ flint2_nginx_security_lua_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy nginx security headers Lua filter
+  when: flint2_nginx_hardening_enabled | default(true) | bool
+  community.openwrt.template:
+    src: nginx-security-headers.lua.j2
+    dest: "{{ flint2_nginx_security_lua_path }}"
+    mode: "0644"
+  register: flint2_nginx_security_lua
+
+- name: Deploy nginx security headers snippet
+  when: flint2_nginx_hardening_enabled | default(true) | bool
+  community.openwrt.template:
+    src: nginx-security-headers.conf.j2
+    dest: "{{ flint2_nginx_gl_conf_d }}/{{ flint2_nginx_security_conf_name }}"
+    mode: "0600"
+  register: flint2_nginx_security_conf
+
+- name: Validate and restart nginx after security headers change
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - (flint2_nginx_security_conf is changed) or (flint2_nginx_security_lua is changed)
+    - not ansible_check_mode
+  community.openwrt.command:
+    cmd: |
+      set -e
+      nginx -t
+      /etc/init.d/nginx restart
+    uses_shell: true

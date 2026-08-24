@@ -84,6 +84,16 @@ flint2_luci_enabled: true
 
 flint2_access_control_enabled: true
 flint2_nginx_gl_conf: /etc/nginx/conf.d/gl.conf
+
+# F-07 / F-09: security headers + server_tokens via /etc/nginx/gl-conf.d/
+# (vendor keeps `user root;` — accepted risk for the Lua/ubus admin API).
+flint2_nginx_hardening_enabled: true
+flint2_nginx_gl_conf_d: /etc/nginx/gl-conf.d
+flint2_nginx_security_conf_name: flint2-security-headers.conf
+flint2_nginx_security_lua_path: /usr/share/gl-ngx/flint2-security-headers.lua
+flint2_nginx_server_tokens: "off"
+flint2_nginx_hsts_max_age: 63072000
+flint2_nginx_verify_headers: true
 flint2_access_control:
   admin:
     http_port: 80

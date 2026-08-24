@@ -262,6 +262,41 @@
       nginx admin panel ports are {{ flint2_verify_admin_panel_ports.stdout_lines | join('/') }},
       expected {{ flint2_access_control.admin.http_port }}/{{ flint2_access_control.admin.https_port }}
 
+- name: Read managed nginx security headers snippet
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - flint2_nginx_verify_headers | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      conf="{{ flint2_nginx_gl_conf_d }}/{{ flint2_nginx_security_conf_name }}"
+      lua="{{ flint2_nginx_security_lua_path }}"
+      test -f "$conf"
+      test -f "$lua"
+      grep -E '^[[:space:]]*server_tokens[[:space:]]+' "$conf"
+      grep -F 'header_filter_by_lua_file' "$conf"
+      grep -F 'Strict-Transport-Security' "$lua"
+      grep -F 'X-Content-Type-Options' "$lua"
+      grep -F 'Referrer-Policy' "$lua"
+      grep -F 'X-Frame-Options' "$lua"
+    uses_shell: true
+  register: flint2_verify_nginx_security_conf
+  changed_when: false
+
+- name: Assert managed nginx security headers snippet matches desired values
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - flint2_nginx_verify_headers | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_nginx_security_conf.rc == 0
+      - flint2_nginx_server_tokens in flint2_verify_nginx_security_conf.stdout
+      - (flint2_nginx_hsts_max_age | string) in flint2_verify_nginx_security_conf.stdout
+    fail_msg: >-
+      {{ flint2_nginx_gl_conf_d }}/{{ flint2_nginx_security_conf_name }} or
+      {{ flint2_nginx_security_lua_path }} is missing or does not contain the
+      expected F-07/F-09 directives
+
 - name: Read LuCI Force HTTPS redirect setting
   when:
     - flint2_access_control_enabled | default(true) | bool
@@ -996,6 +1031,30 @@
   args:
     executable: /bin/bash
   register: flint2_verify_tls_443
+  changed_when: false
+
+- name: Verify nginx security response headers from control node
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - flint2_nginx_verify_headers | default(true) | bool
+    - flint2_tls_verify_from_client | default(true) | bool
+  delegate_to: localhost
+  become: false
+  ansible.builtin.shell: |
+    set -euo pipefail
+    host={{ flint2_tls_verify_host | default(flint2_fqdn | default(ansible_host)) | quote }}
+    headers="$(curl -skI --max-time 15 "https://${host}/")"
+    printf '%s\n' "$headers" | grep -qiE '^strict-transport-security:.*max-age={{ flint2_nginx_hsts_max_age }}'
+    printf '%s\n' "$headers" | grep -qiE '^x-content-type-options:[[:space:]]*nosniff'
+    printf '%s\n' "$headers" | grep -qiE '^referrer-policy:[[:space:]]*strict-origin-when-cross-origin'
+    printf '%s\n' "$headers" | grep -qiE '^x-frame-options:[[:space:]]*DENY'
+    # server_tokens off should hide the version string
+    if printf '%s\n' "$headers" | grep -qiE '^server:'; then
+      printf '%s\n' "$headers" | grep -qiE '^server:[[:space:]]*nginx$'
+    fi
+  args:
+    executable: /bin/bash
+  register: flint2_verify_nginx_headers
   changed_when: false
 
 - name: Verify LuCI TLS endpoint from control node

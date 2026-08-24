@@ -722,6 +722,7 @@ Partial targets automatically run the `always`-tagged UCI commit/apply step (for
 | `make statistics` | `statistics,always` | LuCI Statistics thermal/sensors graphs |
 | `make access-control` | `access_control,luci,always` | Admin/LuCI ports, LuCI install |
 | `make tls` | `tls,always` | nginx + uHTTPd certificates |
+| `make nginx` | `nginx,always` | HSTS + security headers in `gl-conf.d` (F-07/F-09) |
 | `make ssh` | `ssh,always` | Dropbear hardening and keys |
 
 Wireless UCI on OP25 uses `radio0`/`default_radio0` and `radio1`/`default_radio1` (not legacy GL.iNet names `mt798611`/`wifi2g`).

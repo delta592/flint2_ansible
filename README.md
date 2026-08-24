@@ -204,6 +204,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
 | `statistics` | `statistics.yml` | LuCI Statistics, collectd, and thermal/sensors plugins |
 | `tls` | `tls.yml` | Certificate deployment |
+| `nginx` | `nginx.yml` | GL.iNet nginx security headers / HSTS (`gl-conf.d`) |
 | `ssh` | `ssh.yml` | Dropbear and authorized keys |
 | `always` | `apply.yml` | UCI commit and service restarts (runs with every partial Make target) |
 | `verify` | `verify.yml` | Post-apply validation |
@@ -214,11 +215,12 @@ Run a subset with Make or Ansible directly:
 
 ```bash
 make tls
+make nginx            # HSTS + security headers (F-07/F-09)
 make ssh
 make access-control   # includes luci tag
 make statistics       # LuCI Statistics thermal graphs
 make usteer           # active AP-side band steering
-ansible-playbook playbooks/site.yml --tags wireless,tls,always
+ansible-playbook playbooks/site.yml --tags wireless,tls,nginx,always
 ```
 
 Dry-run without applying changes:
