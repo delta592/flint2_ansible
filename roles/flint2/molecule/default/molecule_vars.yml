@@ -35,6 +35,7 @@ flint2_wireless_iface_option_keys:
   - ieee80211k
   - bss_transition
   - wpa_group_rekey
+  - wds
 flint2_wireless:
   ssid: MOLECULE
   encryption: sae-mixed
@@ -42,6 +43,7 @@ flint2_wireless:
   ieee80211k: "1"
   bss_transition: "1"
   wpa_group_rekey: "86400"
+  wds: "0"
   radios:
     # GL.iNet Mode 11n/ax (require_mode n)
     - device: radio0

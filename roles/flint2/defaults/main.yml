@@ -24,6 +24,7 @@ flint2_wireless_iface_option_keys:
   - ieee80211k
   - bss_transition
   - wpa_group_rekey
+  - wds
 
 flint2_wireless:
   ssid: ARGUS
@@ -34,6 +35,8 @@ flint2_wireless:
   bss_transition: "1"
   # LuCI GTK rekeying (seconds); hostapd wpa_group_rekey
   wpa_group_rekey: "86400"
+  # Disable 4-address WDS so authenticated stations cannot bridge into br-lan
+  wds: "0"
   radios: []
 
 flint2_wireless_guest_ifaces: []

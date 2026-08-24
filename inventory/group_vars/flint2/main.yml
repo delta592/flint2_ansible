@@ -56,6 +56,7 @@ flint2_wireless_iface_option_keys:
   - ieee80211k
   - bss_transition
   - wpa_group_rekey
+  - wds
 
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
@@ -70,6 +71,8 @@ flint2_wireless:
   bss_transition: "1"
   # LuCI Network → Wireless → GTK rekeying (seconds)
   wpa_group_rekey: "86400"
+  # Disable 4-address WDS (F-04); no client here uses WDS bridging
+  wds: "0"
   radios:
     # GL.iNet Mode 11n/ax — 20/40 MHz (UCI htmode HE40); require_mode n excludes 802.11g-only clients
     - device: radio0

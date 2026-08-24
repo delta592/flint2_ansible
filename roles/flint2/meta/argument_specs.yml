@@ -70,10 +70,11 @@ argument_specs:
           - ieee80211k
           - bss_transition
           - wpa_group_rekey
+          - wds
         description: >-
           Shared wifi-iface option keys copied from flint2_wireless onto each
           main AP interface (ssid, encryption, key, ieee80211k, bss_transition,
-          wpa_group_rekey).
+          wpa_group_rekey, wds).
       flint2_wireless:
         type: dict
         description: Wireless SSID, encryption, key, roaming aids, and per-radio device settings.
@@ -112,6 +113,15 @@ argument_specs:
             description: >-
               GTK rekeying interval in seconds (LuCI Network → Wireless →
               GTK rekeying; UCI wireless.<iface>.wpa_group_rekey).
+          wds:
+            type: str
+            default: "0"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              4-address WDS mode on main AP interfaces. Keep "0" unless a
+              WDS client or wireless bridge is intentionally used.
           radios:
             type: list
             elements: dict
