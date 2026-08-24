@@ -18,6 +18,7 @@ flint2_wireless_device_option_keys:
   - hwmode
   - legacy_rates
   - require_mode
+  - txpower
 
 flint2_wireless_iface_option_keys:
   - ssid

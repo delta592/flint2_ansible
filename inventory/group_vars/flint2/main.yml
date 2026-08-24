@@ -50,6 +50,7 @@ flint2_wireless_device_option_keys:
   - hwmode
   - legacy_rates
   - require_mode
+  - txpower
 
 flint2_wireless_iface_option_keys:
   - ssid
@@ -78,6 +79,7 @@ flint2_wireless:
   wds: "0"
   radios:
     # F-06: 20 MHz on a non-overlapping channel (1/6/11 only); ht_coex for 802.11n coexistence
+    # F-19: lower 2.4 GHz txpower so dual-band clients prefer 5 GHz (LOS IoT at ~15 ft still fine)
     - device: radio0
       iface: default_radio0
       band: 2g
@@ -87,6 +89,7 @@ flint2_wireless:
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n
+      txpower: "15"
     # F-08: 80 MHz on UNII-1 channel 36 (no DFS/CAC); ht_coex for 802.11n coexistence
     - device: radio1
       iface: default_radio1

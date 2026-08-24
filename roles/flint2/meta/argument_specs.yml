@@ -61,6 +61,7 @@ argument_specs:
           - hwmode
           - legacy_rates
           - require_mode
+          - txpower
         description: Radio device option keys copied from each flint2_wireless.radios entry.
       flint2_wireless_iface_option_keys:
         type: list
@@ -170,6 +171,11 @@ argument_specs:
                   Minimum client PHY mode (UCI wireless device option). On 2.4 GHz,
                   n maps to GL.iNet 11n/ax; on 5 GHz, n maps to 11n/ac/ax (use ac for
                   11ac/ax-only).
+              txpower:
+                type: str
+                description: >-
+                  Transmit power in dBm (UCI wireless.<device>.txpower). Lower 2.4 GHz
+                  relative to 5 GHz to encourage dual-band clients onto 5 GHz.
       flint2_wireless_guest_ifaces:
         type: list
         elements: str

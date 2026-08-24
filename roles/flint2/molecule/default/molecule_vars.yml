@@ -30,6 +30,7 @@ flint2_wireless_device_option_keys:
   - hwmode
   - legacy_rates
   - require_mode
+  - txpower
 flint2_wireless_iface_option_keys:
   - ssid
   - encryption
@@ -47,7 +48,7 @@ flint2_wireless:
   wpa_group_rekey: "86400"
   wds: "0"
   radios:
-    # GL.iNet Mode 11n/ax (require_mode n)
+    # F-06 / F-19: HE20 ch 11, reduced 2.4 GHz txpower (require_mode n)
     - device: radio0
       iface: default_radio0
       band: 2g
@@ -57,6 +58,7 @@ flint2_wireless:
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n
+      txpower: "15"
     # F-08: 80 MHz on channel 36 (require_mode n)
     - device: radio1
       iface: default_radio1
