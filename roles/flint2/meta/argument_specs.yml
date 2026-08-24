@@ -145,7 +145,7 @@ argument_specs:
                 type: str
                 description: >-
                   Channel width / Wi-Fi generation mode (for example HE20 for 2.4 GHz
-                  20 MHz, HE40 for 20/40 MHz, HE160 for 5 GHz 160 MHz).
+                  20 MHz, HE40 for 20/40 MHz, HE80 for 5 GHz 80 MHz, HE160 for 160 MHz).
               channel:
                 type: str
                 description: >-

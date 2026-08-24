@@ -87,12 +87,13 @@ flint2_wireless:
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n
-    # GL.iNet Mode 11n/ac/ax — 160 MHz; require_mode n allows 802.11n/ac/ax clients
-    # (use require_mode ac for 11ac/ax-only, which excludes 802.11n-only clients)
+    # F-08: 80 MHz on UNII-1 channel 36 (no DFS/CAC); ht_coex for 802.11n coexistence
     - device: radio1
       iface: default_radio1
       band: 5g
-      htmode: HE160
+      htmode: HE80
+      channel: "36"
+      ht_coex: "1"
       hwmode: 11a
       require_mode: n
 

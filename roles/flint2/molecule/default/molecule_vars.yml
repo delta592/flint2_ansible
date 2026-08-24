@@ -57,11 +57,13 @@ flint2_wireless:
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n
-    # GL.iNet Mode 11n/ac/ax (require_mode n)
+    # F-08: 80 MHz on channel 36 (require_mode n)
     - device: radio1
       iface: default_radio1
       band: 5g
-      htmode: HE160
+      htmode: HE80
+      channel: "36"
+      ht_coex: "1"
       hwmode: 11a
       require_mode: n
 flint2_wireless_guest_ifaces:

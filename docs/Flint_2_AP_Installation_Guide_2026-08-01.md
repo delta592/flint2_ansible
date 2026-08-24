@@ -2,7 +2,7 @@
 
 This guide documents the successful setup performed on August 1, 2026, beginning with a factory reset and ending with a working Flint 2 access point on the existing pfSense-managed LAN.
 
-It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25** (OpenWrt **25.12.5**) and validating the [`flint2_ansible`](../README.md) playbooks against the live device.
+It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25** (OpenWrt **25.12.5**) and validating the [`flint2_ansible`](../README.md) playbooks against the live device. Wireless radio settings were aligned with the security audit remediations (**F-06** / **F-08**) on 2026-08-23: 2.4 GHz **HE20** on channel **11**, 5 GHz **HE80** on channel **36**.
 
 ## Final working configuration
 
@@ -25,11 +25,11 @@ It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25**
 | Main SSID | `ARGUS` |
 | 2.4 GHz radio / iface (UCI) | `radio0` / `default_radio0` |
 | 5 GHz radio / iface (UCI) | `radio1` / `default_radio1` |
-| 2.4 GHz mode | `11n/ax` (`htmode HE40`, `require_mode n`) |
-| 2.4 GHz channel width | 20/40 MHz |
-| 5 GHz mode | `11n/ac/ax` (`htmode HE160`, `require_mode n`) |
-| 5 GHz channel width | 160 MHz |
-| Security | WPA2-PSK/WPA3-SAE mixed mode (`sae-mixed`) |
+| 2.4 GHz mode | `11n/ax` (`htmode HE20`, `require_mode n`, `ht_coex 1`) |
+| 2.4 GHz channel / width | Channel **11**, **20 MHz** (pinned; non-overlapping 1/6/11) |
+| 5 GHz mode | `11n/ac/ax` (`htmode HE80`, `require_mode n`, `ht_coex 1`) |
+| 5 GHz channel / width | Channel **36**, **80 MHz** (UNII-1; no DFS/CAC) |
+| Security | WPA2-PSK/WPA3-SAE mixed mode (`sae-mixed`); WDS disabled (`wds 0`) |
 | NTP upstream | `pool.ntp.org` via `chronyd` |
 | Thermal monitoring | LuCI Statistics (`collectd-mod-thermal` / `collectd-mod-sensors`) |
 | LuCI time format | 24-Hour Clock (`system.@system[0].clock_hourcycle=h23`) |
@@ -363,7 +363,9 @@ All SSIDs were changed to:
 ARGUS
 ```
 
-A strong random passphrase was generated offline and stored in 1Password.
+A strong random passphrase was generated offline and stored in 1Password (and in `.secrets/ARGUS_wifi_password.env` for Ansible).
+
+Preferred path after the first-run UI: apply wireless from this repository with `make wireless` (see [section 19](#19-ansible-automation)). Inventory values live in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml).
 
 ### 2.4 GHz settings
 
@@ -372,11 +374,14 @@ Use:
 ```text
 SSID: ARGUS
 Mode: 11n/ax
-Channel width: 20/40 MHz
+htmode: HE20
+Channel: 11 (pinned; alternatives 1 or 6 after a survey)
+ht_coex: 1
 Security: WPA2-PSK/WPA3-SAE mixed mode
+wds: 0
 ```
 
-`11n/ax` was selected to retain compatibility with the ecobee while avoiding obsolete 802.11b / 802.11g rates.
+`11n/ax` with `require_mode n` retains compatibility with the ecobee while avoiding obsolete 802.11b / 802.11g rates. **20 MHz** on a non-overlapping channel (1 / 6 / 11) is required in this RF environment — 40 MHz on channel 7 previously showed ~10.9 % foreign airtime occupancy.
 
 ### 5 GHz settings
 
@@ -385,25 +390,20 @@ Use:
 ```text
 SSID: ARGUS
 Mode: 11n/ac/ax
-Bandwidth: 160 MHz
+htmode: HE80
+Channel: 36 (pinned; UNII-1)
+ht_coex: 1
 Security: WPA2-PSK/WPA3-SAE mixed mode
+wds: 0
 ```
 
 `11n/ac/ax` excludes older 802.11a clients while retaining Wi-Fi 5 and Wi-Fi 6 support.
 
-### 160 MHz versus 80 MHz
+### 80 MHz versus 160 MHz
 
-160 MHz provides higher peak throughput for compatible clients but uses twice as much spectrum and can be more sensitive to DFS/radar events or client quirks.
+160 MHz provides higher peak PHY rates (~2400 Mbit/s on capable clients) but a 160 MHz block starting near channel 36 spans into **DFS** spectrum (center ~5250 MHz). That forces a 60 s CAC at every boot and exposes clients to radar-triggered disconnects.
 
-80 MHz is more conservative and usually more stable.
-
-The final configuration used:
-
-```text
-160 MHz
-```
-
-If instability appears, reduce the 5 GHz width to 80 MHz.
+**80 MHz on channel 36** keeps the entire block in UNII-1 (center 5210 MHz), avoids DFS/CAC, and still far exceeds the 2.5 GbE uplink. That is the current Ansible and live-device configuration (verified 2026-08-23).
 
 ### Security mode
 
@@ -413,7 +413,9 @@ The final Personal-mode setting was:
 WPA2-PSK/WPA3-SAE mixed mode
 ```
 
-This permits newer clients to use WPA3-SAE while retaining WPA2 compatibility.
+This permits newer clients to use WPA3-SAE while retaining WPA2 compatibility. Main ARGUS interfaces also set `wds: 0` so 4-address WDS bridging is off.
+
+Disabled guest/IoT SSID templates (`guest2g`, `guest5g`, `iot2g`, `iot5g`) use `sae-mixed` and a strong key from `.secrets/guest_passphrases.env` so a UI toggle no longer exposes the factory `goodlife` / `psk2` defaults.
 
 ### 802.11k / 802.11v BSS Transition
 
@@ -473,6 +475,13 @@ Successful connection of all three confirmed:
 - WPA2/WPA3 mixed-mode compatibility
 - pfSense DHCP relay through the Flint AP
 - Internet and LAN access through the AP
+
+After `make wireless`, confirm channels and widths on the AP:
+
+```bash
+ssh root@wapap1003 'iw dev wlan0 info; iw dev wlan1 info'
+# Expect: wlan0 channel 11, width 20 MHz; wlan1 channel 36, width 80 MHz, center1 5210 MHz
+```
 
 Expected client settings:
 
@@ -589,12 +598,18 @@ Use the GL.iNet interface for:
 
 - Firmware upgrades
 - AP/router mode
-- SSID names
-- Wi-Fi passwords
-- Wireless channels and widths
-- WPA2/WPA3 Personal security
 - LED and vendor-specific settings
-- GL.iNet applications
+- GL.iNet applications (for example enabling LuCI the first time)
+- Day-to-day **Clients** page (`#/clients`) — do not disable `gl-tertf` / `gl_clients` if you need this UI
+
+Use Ansible (`make wireless` / `make site`) as the source of truth for:
+
+- Main SSID `ARGUS`, passphrase, `sae-mixed`, `wds=0`
+- Radio channels and widths (`HE20`/ch 11, `HE80`/ch 36)
+- Guest/IoT passphrase rotation (ifaces stay disabled)
+- 802.11k / 802.11v and usteer
+
+Avoid changing channels or widths in the GL.iNet UI after Ansible has applied them — the next `make wireless` will overwrite UCI to match inventory.
 
 Use LuCI for:
 
@@ -602,7 +617,7 @@ Use LuCI for:
 - Time format (24-hour clock)
 - Logs and diagnostics
 - Configuration backups
-- Interface inspection
+- Interface inspection / associated stations
 - Advanced wireless security such as EAP
 - Settings not exposed in the GL.iNet interface
 
@@ -639,6 +654,8 @@ Confirm all of the following:
 - [x] SSH public-key authentication works.
 - [x] 2.4 GHz clients connect.
 - [x] 5 GHz clients connect.
+- [x] 2.4 GHz is HE20 on channel 11 (`make wireless` / F-06).
+- [x] 5 GHz is HE80 on channel 36, center 5210 MHz (`make wireless` / F-08).
 - [x] ecobee connects.
 - [x] iPhone connects.
 - [x] MacBook Air connects.
