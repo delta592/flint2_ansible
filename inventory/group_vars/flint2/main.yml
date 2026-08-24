@@ -45,6 +45,8 @@ flint2_firmware_auto_update_check: "0"
 flint2_wireless_device_option_keys:
   - band
   - htmode
+  - channel
+  - ht_coex
   - hwmode
   - legacy_rates
   - require_mode
@@ -75,11 +77,13 @@ flint2_wireless:
   # Disable 4-address WDS (F-04); no client here uses WDS bridging
   wds: "0"
   radios:
-    # GL.iNet Mode 11n/ax — 20/40 MHz (UCI htmode HE40); require_mode n excludes 802.11g-only clients
+    # F-06: 20 MHz on a non-overlapping channel (1/6/11 only); ht_coex for 802.11n coexistence
     - device: radio0
       iface: default_radio0
       band: 2g
-      htmode: HE40
+      htmode: HE20
+      channel: "11"
+      ht_coex: "1"
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n

@@ -13,6 +13,8 @@ flint2_wan_device: eth1
 flint2_wireless_device_option_keys:
   - band
   - htmode
+  - channel
+  - ht_coex
   - hwmode
   - legacy_rates
   - require_mode

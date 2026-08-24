@@ -25,6 +25,8 @@ flint2_packages_absent: []
 flint2_wireless_device_option_keys:
   - band
   - htmode
+  - channel
+  - ht_coex
   - hwmode
   - legacy_rates
   - require_mode
@@ -49,7 +51,9 @@ flint2_wireless:
     - device: radio0
       iface: default_radio0
       band: 2g
-      htmode: HE40
+      htmode: HE20
+      channel: "11"
+      ht_coex: "1"
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n

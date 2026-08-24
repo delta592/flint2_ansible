@@ -56,6 +56,8 @@ argument_specs:
         default:
           - band
           - htmode
+          - channel
+          - ht_coex
           - hwmode
           - legacy_rates
           - require_mode
@@ -142,8 +144,20 @@ argument_specs:
               htmode:
                 type: str
                 description: >-
-                  Channel width / Wi-Fi generation mode (for example HE40 for 2.4 GHz
-                  20/40 MHz, HE160 for 5 GHz 160 MHz).
+                  Channel width / Wi-Fi generation mode (for example HE20 for 2.4 GHz
+                  20 MHz, HE40 for 20/40 MHz, HE160 for 5 GHz 160 MHz).
+              channel:
+                type: str
+                description: >-
+                  Fixed channel for the radio (for example "11" on 2.4 GHz). Use 1,
+                  6, or 11 on 2.4 GHz to avoid overlapping with adjacent APs.
+              ht_coex:
+                type: str
+                choices:
+                  - "0"
+                  - "1"
+                description: >-
+                  Enable 802.11n HT coexistence on the radio (wireless.<device>.ht_coex).
               hwmode:
                 type: str
                 description: Legacy hardware mode when applicable.
