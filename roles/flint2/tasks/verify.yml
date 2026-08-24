@@ -278,7 +278,8 @@
       grep -F 'Strict-Transport-Security' "$lua"
       grep -F 'X-Content-Type-Options' "$lua"
       grep -F 'Referrer-Policy' "$lua"
-      grep -F 'X-Frame-Options' "$lua"
+      # Comments may mention X-Frame-Options; only fail if we set the header.
+      ! grep -E 'ngx\.header\["X-Frame-Options"\]' "$lua"
     uses_shell: true
   register: flint2_verify_nginx_security_conf
   changed_when: false
@@ -296,6 +297,33 @@
       {{ flint2_nginx_gl_conf_d }}/{{ flint2_nginx_security_conf_name }} or
       {{ flint2_nginx_security_lua_path }} is missing or does not contain the
       expected F-07/F-09 directives
+
+- name: Read ssl_ciphers from GL.iNet gl.conf
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      conf="{{ flint2_nginx_gl_conf | quote }}"
+      grep -E '^[[:space:]]*ssl_ciphers[[:space:]]+' "$conf"
+    uses_shell: true
+  register: flint2_verify_nginx_ssl_ciphers
+  changed_when: false
+
+- name: Assert ssl_ciphers is AEAD-only (no CBC suites)
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_nginx_ssl_ciphers.rc == 0
+      - (flint2_nginx_ssl_ciphers | trim) in flint2_verify_nginx_ssl_ciphers.stdout
+      - "'EECDH+ECDSA+SHA256' not in flint2_verify_nginx_ssl_ciphers.stdout"
+      - "'!SR    P' not in flint2_verify_nginx_ssl_ciphers.stdout"
+    fail_msg: >-
+      {{ flint2_nginx_gl_conf }} ssl_ciphers is '{{ flint2_verify_nginx_ssl_ciphers.stdout | trim }}',
+      expected AEAD-only '{{ flint2_nginx_ssl_ciphers | trim }}'
 
 - name: Read LuCI Force HTTPS redirect setting
   when:
@@ -1043,7 +1071,8 @@
   ansible.builtin.shell: |
     set -euo pipefail
     host={{ flint2_tls_verify_host | default(flint2_fqdn | default(ansible_host)) | quote }}
-    headers="$(curl -skI --max-time 15 "https://${host}/")"
+    # curl emits CRLF; strip CR so $ anchors match.
+    headers="$(curl -skI --max-time 15 "https://${host}/" | tr -d '\r')"
     printf '%s\n' "$headers" | grep -qiE '^strict-transport-security:.*max-age={{ flint2_nginx_hsts_max_age }}'
     printf '%s\n' "$headers" | grep -qiE '^x-content-type-options:[[:space:]]*nosniff'
     printf '%s\n' "$headers" | grep -qiE '^referrer-policy:[[:space:]]*strict-origin-when-cross-origin'
@@ -1055,6 +1084,28 @@
   args:
     executable: /bin/bash
   register: flint2_verify_nginx_headers
+  changed_when: false
+
+- name: Verify obsolete CBC TLS 1.2 ciphers are not offered
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
+    - flint2_tls_verify_from_client | default(true) | bool
+  delegate_to: localhost
+  become: false
+  ansible.builtin.shell: |
+    set -euo pipefail
+    host={{ flint2_tls_verify_host | default(flint2_fqdn | default(ansible_host)) | quote }}
+    # Force TLS 1.2 with CBC-only OpenSSL cipher names; handshake must fail.
+    if echo | openssl s_client -connect "${host}:443" -servername "${host}" -tls1_2 \
+      -cipher 'ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384' \
+      </dev/null 2>/dev/null | grep -qE 'Cipher is [^N]|Cipher    : [^N]'; then
+      echo "unexpected CBC TLS 1.2 cipher negotiated with ${host}:443" >&2
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  register: flint2_verify_nginx_no_cbc
   changed_when: false
 
 - name: Verify LuCI TLS endpoint from control node

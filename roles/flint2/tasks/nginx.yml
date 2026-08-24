@@ -1,7 +1,8 @@
 ---
-# F-07 / F-09: harden the GL.iNet nginx admin stack via gl-conf.d (server include).
+# F-07 / F-09 / F-28: harden the GL.iNet nginx admin stack.
+# Headers via gl-conf.d + Lua file; ssl_ciphers via in-place rewrite of gl.conf
+# (cannot override from gl-conf.d — nginx rejects duplicate ssl_ciphers).
 # Does not change vendor `user root;` — accepted risk (Lua/ubus admin API).
-# Headers use header_filter_by_lua_file (NGX_LUA_NO_BY_LUA_BLOCK on GL.iNet).
 
 - name: Ensure nginx gl-conf.d directory exists
   when: flint2_nginx_hardening_enabled | default(true) | bool
@@ -33,10 +34,23 @@
     mode: "0600"
   register: flint2_nginx_security_conf
 
-- name: Validate and restart nginx after security headers change
+- name: Set AEAD-only ssl_ciphers in GL.iNet gl.conf
   when:
     - flint2_nginx_hardening_enabled | default(true) | bool
-    - (flint2_nginx_security_conf is changed) or (flint2_nginx_security_lua is changed)
+    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
+  community.openwrt.lineinfile:
+    path: "{{ flint2_nginx_gl_conf }}"
+    regexp: '^[[:space:]]*ssl_ciphers[[:space:]]+'
+    line: '    ssl_ciphers "{{ flint2_nginx_ssl_ciphers | trim }}";'
+  register: flint2_nginx_ssl_ciphers_line
+
+- name: Validate and restart nginx after security hardening change
+  when:
+    - flint2_nginx_hardening_enabled | default(true) | bool
+    - >-
+      (flint2_nginx_security_conf is changed)
+      or (flint2_nginx_security_lua is changed)
+      or (flint2_nginx_ssl_ciphers_line is changed)
     - not ansible_check_mode
   community.openwrt.command:
     cmd: |

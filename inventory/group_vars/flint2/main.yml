@@ -139,6 +139,10 @@ flint2_nginx_security_lua_path: /usr/share/gl-ngx/flint2-security-headers.lua
 flint2_nginx_server_tokens: "off"
 flint2_nginx_hsts_max_age: 63072000
 flint2_nginx_verify_headers: true
+# F-28: drop obsolete CBC suites from vendor ssl_ciphers (rewrite gl.conf line)
+flint2_nginx_manage_ssl_ciphers: true
+flint2_nginx_ssl_ciphers: >-
+  ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305
 
 # GL.iNet UI → System → Access Control (live values on wapap1003, 2026-08-02)
 flint2_access_control_enabled: true
