@@ -40,10 +40,17 @@ flint2_wireless:
   radios: []
 
 flint2_wireless_guest_ifaces: []
+flint2_wireless_guest_option_keys:
+  - encryption
+  - key
+flint2_wireless_guest:
+  encryption: sae-mixed
+  key: ""
 
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
 flint2_wireless_key_file: ARGUS_wifi_password.env
+flint2_wireless_guest_key_file: guest_passphrases.env
 
 flint2_tls_enabled: false
 flint2_tls_cert_files_dir: "{{ flint2_env_dir }}"

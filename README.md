@@ -132,6 +132,7 @@ Sensitive files live outside the repository and are listed in [`.gitignore`](.gi
 .secrets/                      # Private keys and passphrases (gitignored)
   wapap1003.key
   ARGUS_wifi_password.env      # Main Wi-Fi passphrase (single line, no KEY=value)
+  guest_passphrases.env        # Shared guest/IoT Wi-Fi passphrase (single line)
 
 inventory/group_vars/flint2/
   main.yml                     # Device and service configuration
@@ -139,7 +140,7 @@ inventory/group_vars/flint2/
   vault.yml.example
 ```
 
-The wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). The file should contain the passphrase alone on one line. The same inventory enables `ieee80211k` / `bss_transition` and installs **usteer** for active AP-side band steering (`make usteer`).
+The main wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). Guest and IoT SSIDs (kept disabled) use `.secrets/guest_passphrases.env` via `flint2_wireless_guest_key_file` with `sae-mixed` encryption so the GL.iNet factory `goodlife` / `psk2` defaults are replaced. Both secret files should contain the passphrase alone on one line. The same inventory enables `ieee80211k` / `bss_transition` and installs **usteer** for active AP-side band steering (`make usteer`).
 
 ### Bootstrap SSH (first run after reset)
 

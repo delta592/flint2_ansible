@@ -61,6 +61,7 @@ flint2_wireless_iface_option_keys:
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
 flint2_wireless_key_file: ARGUS_wifi_password.env
+flint2_wireless_guest_key_file: guest_passphrases.env
 
 flint2_wireless:
   ssid: ARGUS
@@ -91,12 +92,18 @@ flint2_wireless:
       hwmode: 11a
       require_mode: n
 
-# Guest/IoT SSIDs (guest2g, guest5g, iot2g, iot5g) are left untouched.
+# Guest/IoT SSIDs stay disabled; rotate factory goodlife/psk2 to sae-mixed + strong key (F-03).
 flint2_wireless_guest_ifaces:
   - guest2g
   - guest5g
   - iot2g
   - iot5g
+flint2_wireless_guest_option_keys:
+  - encryption
+  - key
+flint2_wireless_guest:
+  encryption: sae-mixed
+  key: "{{ lookup('ansible.builtin.file', flint2_secrets_dir + '/' + flint2_wireless_guest_key_file) | trim }}"
 
 flint2_tls_enabled: true
 flint2_tls_cert_files_dir: "{{ flint2_env_dir }}"

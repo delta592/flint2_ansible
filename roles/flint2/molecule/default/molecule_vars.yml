@@ -65,3 +65,9 @@ flint2_wireless_guest_ifaces:
   - guest5g
   - iot2g
   - iot5g
+flint2_wireless_guest_option_keys:
+  - encryption
+  - key
+flint2_wireless_guest:
+  encryption: sae-mixed
+  key: molecule-guest-test-key

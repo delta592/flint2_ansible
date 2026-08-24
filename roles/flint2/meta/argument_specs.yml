@@ -161,6 +161,29 @@ argument_specs:
         elements: str
         default: []
         description: Guest or IoT interface names expected to remain disabled.
+      flint2_wireless_guest_option_keys:
+        type: list
+        elements: str
+        default:
+          - encryption
+          - key
+        description: >-
+          Shared wifi-iface option keys copied from flint2_wireless_guest onto
+          each guest/IoT interface (encryption, key).
+      flint2_wireless_guest:
+        type: dict
+        description: >-
+          Encryption and passphrase applied to guest/IoT wifi-ifaces so factory
+          defaults (psk2 / goodlife) are replaced even while disabled.
+        options:
+          encryption:
+            type: str
+            default: sae-mixed
+            description: Wireless encryption mode for guest/IoT interfaces.
+          key:
+            type: str
+            default: ""
+            description: Guest/IoT passphrase applied when non-empty.
       flint2_env_dir:
         type: path
         description: Control-node directory containing public certificates and SSH public keys.
@@ -173,6 +196,12 @@ argument_specs:
         description: >-
           Filename in flint2_secrets_dir containing the main Wi-Fi passphrase
           (single line, no KEY=value syntax).
+      flint2_wireless_guest_key_file:
+        type: str
+        default: guest_passphrases.env
+        description: >-
+          Filename in flint2_secrets_dir containing the shared guest/IoT Wi-Fi
+          passphrase (single line, no KEY=value syntax).
       flint2_tls_enabled:
         type: bool
         default: false
