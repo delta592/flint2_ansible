@@ -51,6 +51,8 @@ flint2_wireless_device_option_keys:
   - legacy_rates
   - require_mode
   - txpower
+  - acs_exclude_dfs
+  - cell_density
 
 flint2_wireless_iface_option_keys:
   - ssid
@@ -60,6 +62,7 @@ flint2_wireless_iface_option_keys:
   - bss_transition
   - wpa_group_rekey
   - wds
+  - mbo
 
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
@@ -77,20 +80,34 @@ flint2_wireless:
   wpa_group_rekey: "86400"
   # Disable 4-address WDS (F-04); no client here uses WDS bridging
   wds: "0"
+  # Wi-Fi Agile Multiband (MBO): advertise band/BSS preference so capable
+  # clients can prefer 5 GHz without waiting for usteer BTM
+  mbo: "1"
   radios:
     # F-06: 20 MHz on a non-overlapping channel (1/6/11 only); ht_coex for 802.11n coexistence
     # F-19: lower 2.4 GHz txpower so dual-band clients prefer 5 GHz (LOS IoT at ~15 ft still fine)
+    # B2: channel 6 (empty); ch 11 shared CenturyLink4730, ch 1 shared Richard
+    # B6: allowlist only the ecobee on 2.4 GHz (band policy, not security)
+    # B8: cell_density 2 raises basic_rates to 12/24 Mbit/s
+    # B9: require PMF on 2.4 GHz only (ecobee is mfp:true; radio1 stays at 1)
     - device: radio0
       iface: default_radio0
       band: 2g
       htmode: HE20
-      channel: "11"
+      channel: "6"
       ht_coex: "1"
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n
       txpower: "15"
+      cell_density: "2"
+      iface_options:
+        macfilter: allow
+        maclist:
+          - "44:61:32:21:92:66"
+        ieee80211w: "2"
     # F-08: 80 MHz on UNII-1 channel 36 (no DFS/CAC); ht_coex for 802.11n coexistence
+    # acs_exclude_dfs: inert while channel is pinned; blocks radar channels if ACS returns
     - device: radio1
       iface: default_radio1
       band: 5g
@@ -99,6 +116,7 @@ flint2_wireless:
       ht_coex: "1"
       hwmode: 11a
       require_mode: n
+      acs_exclude_dfs: "1"
 
 # Guest/IoT SSIDs stay disabled; rotate factory goodlife/psk2 to sae-mixed + strong key (F-03).
 flint2_wireless_guest_ifaces:
@@ -197,8 +215,12 @@ flint2_usteer:
   syslog: "1"
   debug_level: "2"
   ipv6: "0"
-  band_steering_interval: "30000"
-  band_steering_min_snr: "-60"
+  # D1: refuse 2.4 GHz assoc when the client has been seen probing 5 GHz
+  assoc_steering: "1"
+  # D3: worst-case 2.4 GHz dwell before reactive steer (was 30000)
+  band_steering_interval: "10000"
+  # D2: SNR gate in dB (was -60, which never gated); measured SNRs are 40–52 dB
+  band_steering_min_snr: "15"
   band_steering_threshold: "1"
   # Empty → use flint2_wireless.ssid (ARGUS)
   ssid_list: []

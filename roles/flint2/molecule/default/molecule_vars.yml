@@ -34,6 +34,8 @@ flint2_wireless_device_option_keys:
   - legacy_rates
   - require_mode
   - txpower
+  - acs_exclude_dfs
+  - cell_density
 flint2_wireless_iface_option_keys:
   - ssid
   - encryption
@@ -42,6 +44,7 @@ flint2_wireless_iface_option_keys:
   - bss_transition
   - wpa_group_rekey
   - wds
+  - mbo
 flint2_wireless:
   ssid: MOLECULE
   encryption: sae-mixed
@@ -50,19 +53,27 @@ flint2_wireless:
   bss_transition: "1"
   wpa_group_rekey: "86400"
   wds: "0"
+  mbo: "1"
   radios:
-    # F-06 / F-19: HE20 ch 11, reduced 2.4 GHz txpower (require_mode n)
+    # F-06 / F-19 / B2 / B8: HE20 ch 6, cell_density 2, reduced txpower
+    # B6 / B9: ecobee allowlist + require PMF on 2.4 GHz
     - device: radio0
       iface: default_radio0
       band: 2g
       htmode: HE20
-      channel: "11"
+      channel: "6"
       ht_coex: "1"
       hwmode: 11g
       legacy_rates: "0"
       require_mode: n
       txpower: "15"
-    # F-08: 80 MHz on channel 36 (require_mode n)
+      cell_density: "2"
+      iface_options:
+        macfilter: allow
+        maclist:
+          - "44:61:32:21:92:66"
+        ieee80211w: "2"
+    # F-08: 80 MHz on channel 36 (require_mode n); exclude DFS if ACS runs
     - device: radio1
       iface: default_radio1
       band: 5g
@@ -71,6 +82,7 @@ flint2_wireless:
       ht_coex: "1"
       hwmode: 11a
       require_mode: n
+      acs_exclude_dfs: "1"
 flint2_wireless_guest_ifaces:
   - guest2g
   - guest5g

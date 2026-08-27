@@ -11,12 +11,14 @@
   loop_control:
     label: "{{ item.0.device }}.{{ item.1 }}={{ item.0.get(item.1, '') }}"
 
+# Shared keys apply to every main iface unless that radio's iface_options overrides the key.
 - name: Configure wireless options on main AP interfaces
   when:
     - flint2_wireless.radios | default([]) | length > 0
     - item.0.iface is defined
     - flint2_wireless[item.1] is defined
     - item.1 != 'key' or (flint2_wireless.key | default('') | length > 0)
+    - item.0.iface_options is not defined or item.1 not in item.0.iface_options
   community.openwrt.uci:
     command: set
     key: "wireless.{{ item.0.iface }}.{{ item.1 }}"
@@ -25,6 +27,17 @@
   loop_control:
     label: "{{ item.0.iface }}.{{ item.1 }}"
   no_log: "{{ item.1 == 'key' }}"
+
+# Per-radio wifi-iface options (B6 macfilter/maclist; B9 ieee80211w). Prefer overrides over shared keys.
+- name: Apply per-radio wireless interface options
+  when:
+    - flint2_wireless_radio.iface is defined
+    - flint2_wireless_radio.iface_options is defined
+  ansible.builtin.include_tasks: wireless_iface_options.yml
+  loop: "{{ flint2_wireless.radios | default([]) }}"
+  loop_control:
+    loop_var: flint2_wireless_radio
+    label: "{{ flint2_wireless_radio.iface | default(flint2_wireless_radio.device | default('radio')) }}"
 
 - name: Configure encryption and key on guest and IoT interfaces
   when:

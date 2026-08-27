@@ -62,6 +62,8 @@ argument_specs:
           - legacy_rates
           - require_mode
           - txpower
+          - acs_exclude_dfs
+          - cell_density
         description: Radio device option keys copied from each flint2_wireless.radios entry.
       flint2_wireless_iface_option_keys:
         type: list
@@ -74,10 +76,11 @@ argument_specs:
           - bss_transition
           - wpa_group_rekey
           - wds
+          - mbo
         description: >-
           Shared wifi-iface option keys copied from flint2_wireless onto each
           main AP interface (ssid, encryption, key, ieee80211k, bss_transition,
-          wpa_group_rekey, wds).
+          wpa_group_rekey, wds, mbo).
       flint2_wireless:
         type: dict
         description: Wireless SSID, encryption, key, roaming aids, and per-radio device settings.
@@ -125,6 +128,15 @@ argument_specs:
             description: >-
               4-address WDS mode on main AP interfaces. Keep "0" unless a
               WDS client or wireless bridge is intentionally used.
+          mbo:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              Enable Wi-Fi Agile Multiband (MBO) on main AP interfaces so
+              capable clients can prefer the AP's advertised band/BSS.
           radios:
             type: list
             elements: dict
@@ -176,6 +188,59 @@ argument_specs:
                 description: >-
                   Transmit power in dBm (UCI wireless.<device>.txpower). Lower 2.4 GHz
                   relative to 5 GHz to encourage dual-band clients onto 5 GHz.
+              acs_exclude_dfs:
+                type: str
+                choices:
+                  - "0"
+                  - "1"
+                description: >-
+                  When ACS is used (channel auto), exclude DFS/radar channels.
+                  Typically set on 5 GHz only; inert while channel is pinned.
+              cell_density:
+                type: str
+                choices:
+                  - "0"
+                  - "1"
+                  - "2"
+                  - "3"
+                description: >-
+                  OpenWrt wifi-device cell_density. Higher values raise
+                  basic_rates (for example "2" → 12/24 Mbit/s) to cut beacon
+                  and multicast airtime.
+              iface_options:
+                type: dict
+                description: >-
+                  Per-radio wifi-iface options that override or extend the shared
+                  flint2_wireless keys for this interface only (for example
+                  macfilter/maclist on 2.4 GHz, or ieee80211w). Scalar values are
+                  set with UCI set; maclist must be a list and is applied with
+                  add_list. Per-radio keys take precedence over shared
+                  flint2_wireless_iface_option_keys for the same option name.
+                options:
+                  macfilter:
+                    type: str
+                    choices:
+                      - disable
+                      - allow
+                      - deny
+                    description: >-
+                      MAC address filter mode on this wifi-iface (band policy).
+                      Use allow with maclist to admit only listed stations.
+                  maclist:
+                    type: list
+                    elements: str
+                    description: >-
+                      Allowed or denied station MACs when macfilter is allow or
+                      deny (UCI list option wireless.<iface>.maclist).
+                  ieee80211w:
+                    type: str
+                    choices:
+                      - "0"
+                      - "1"
+                      - "2"
+                    description: >-
+                      Per-radio PMF setting when it must differ from the shared
+                      default (for example require PMF on 2.4 GHz only).
       flint2_wireless_guest_ifaces:
         type: list
         elements: str
@@ -530,18 +595,28 @@ argument_specs:
               - "0"
               - "1"
             description: Use IPv6 for remote usteer exchange.
+          assoc_steering:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              When "1", refuse association on a lower band if usteer has already
+              seen the same client probing on a higher band (proactive band
+              steering). Required for clients that ignore 802.11v BTM.
           band_steering_interval:
             type: str
-            default: "30000"
+            default: "10000"
             description: >-
               Attempt to steer clients to a higher frequency band every N ms.
               Use "0" to disable band steering.
           band_steering_min_snr:
             type: str
-            default: "-60"
+            default: "15"
             description: >-
-              Minimum SNR/signal (dBm) a client must sustain over
-              band_steering_interval before being steered upward in band.
+              Minimum SNR (dB) a client must have on the lower band before
+              usteer steers it upward. A negative value effectively never gates.
           band_steering_threshold:
             type: str
             default: "1"

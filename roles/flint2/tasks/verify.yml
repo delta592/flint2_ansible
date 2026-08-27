@@ -642,6 +642,7 @@
   loop:
     - network
     - local_mode
+    - assoc_steering
     - band_steering_interval
     - band_steering_min_snr
     - band_steering_threshold
@@ -779,6 +780,7 @@
   when:
     - item.0.iface is defined
     - flint2_wireless[item.1] is defined
+    - item.0.iface_options is not defined or item.1 not in item.0.iface_options
   community.openwrt.uci:
     command: get
     key: "wireless.{{ item.0.iface }}.{{ item.1 }}"
@@ -809,6 +811,74 @@
   loop: "{{ flint2_verify_wireless_iface_options.results | selectattr('skipped', 'undefined') | list }}"
   loop_control:
     label: "{{ item.item.0.iface }}.{{ item.item.1 }}"
+
+- name: Read configured per-radio wireless interface scalar options
+  when:
+    - flint2_verify_iface_scalar_items | length > 0
+  community.openwrt.uci:
+    command: get
+    key: "wireless.{{ item.iface }}.{{ item.key }}"
+  loop: "{{ flint2_verify_iface_scalar_items }}"
+  vars:
+    flint2_verify_iface_scalar_items_json: >-
+      {%- set ns = namespace(items=[]) -%}
+      {%- for radio in flint2_wireless.radios | default([]) -%}
+        {%- if radio.iface is defined and radio.iface_options is defined -%}
+          {%- for key, value in radio.iface_options.items() -%}
+            {%- if key != 'maclist' and (value is string or value is number) -%}
+              {{ ns.items.append({'iface': radio.iface, 'key': key, 'value': value}) or '' }}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.items | to_json }}
+    flint2_verify_iface_scalar_items: "{{ flint2_verify_iface_scalar_items_json | from_json }}"
+  loop_control:
+    label: "{{ item.iface }}.{{ item.key }}"
+  register: flint2_verify_per_iface_scalars
+  changed_when: false
+
+- name: Assert per-radio wireless interface scalar options match desired values
+  when: flint2_verify_per_iface_scalars.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == item.item.value | string
+    fail_msg: >-
+      wireless.{{ item.item.iface }}.{{ item.item.key }} is '{{ item.result }}',
+      expected '{{ item.item.value }}'
+  loop: "{{ flint2_verify_per_iface_scalars.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ item.item.iface }}.{{ item.item.key }}"
+
+- name: Read configured per-radio wireless interface maclist
+  when:
+    - item.iface is defined
+    - item.iface_options is defined
+    - item.iface_options.maclist is defined
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      uci -q get "wireless.{{ item.iface }}.maclist" 2>/dev/null || true
+    uses_shell: true
+  loop: "{{ flint2_wireless.radios | default([]) | selectattr('iface_options', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.iface }}.maclist"
+  register: flint2_verify_per_iface_maclist
+  changed_when: false
+
+- name: Assert per-radio wireless interface maclist matches desired values
+  when: flint2_verify_per_iface_maclist.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - >-
+        ((item.stdout | default('') | trim).split() | map('lower') | list | sort)
+        == (item.item.iface_options.maclist | map('lower') | list | sort)
+    fail_msg: >-
+      wireless.{{ item.item.iface }}.maclist is '{{ item.stdout | trim }}',
+      expected '{{ item.item.iface_options.maclist | join(' ') }}'
+  loop: "{{ flint2_verify_per_iface_maclist.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ item.item.iface }}.maclist"
 
 - name: Read live wireless SSID broadcast by each main AP interface
   when:

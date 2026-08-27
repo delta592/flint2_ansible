@@ -19,6 +19,8 @@ flint2_wireless_device_option_keys:
   - legacy_rates
   - require_mode
   - txpower
+  - acs_exclude_dfs
+  - cell_density
 
 flint2_wireless_iface_option_keys:
   - ssid
@@ -28,6 +30,7 @@ flint2_wireless_iface_option_keys:
   - bss_transition
   - wpa_group_rekey
   - wds
+  - mbo
 
 flint2_wireless:
   ssid: ARGUS
@@ -40,6 +43,8 @@ flint2_wireless:
   wpa_group_rekey: "86400"
   # Disable 4-address WDS so authenticated stations cannot bridge into br-lan
   wds: "0"
+  # Wi-Fi Agile Multiband (MBO) band/BSS preference advertisement
+  mbo: "1"
   radios: []
 
 flint2_wireless_guest_ifaces: []
@@ -147,9 +152,11 @@ flint2_usteer:
   syslog: "1"
   debug_level: "2"
   ipv6: "0"
+  # Refuse lower-band association when the client has been seen on a higher band
+  assoc_steering: "1"
   # Steer clients to a higher band every N ms (0 disables band steering)
-  band_steering_interval: "30000"
-  band_steering_min_snr: "-60"
+  band_steering_interval: "10000"
+  band_steering_min_snr: "15"
   band_steering_threshold: "1"
   # SSIDs to steer; defaults to flint2_wireless.ssid when empty
   ssid_list: []

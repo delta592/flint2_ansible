@@ -18,3 +18,5 @@ htmlcov/
 context/
 flint2-ansible-ee*
 *.egg-info/
+/AUDIT.md
+/CLIENT_PERF.md
