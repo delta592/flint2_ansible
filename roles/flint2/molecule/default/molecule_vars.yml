@@ -5,6 +5,7 @@ flint2_firmware_auto_update_check: "0"
 flint2_verify_glinet_settings: false
 flint2_verify_live_hostname: false
 flint2_verify_live_wireless: false
+flint2_verify_live_bridge: false
 flint2_luci_enabled: false
 flint2_access_control_enabled: false
 flint2_statistics_enabled: false
@@ -20,6 +21,14 @@ flint2_ssh_authorized_keys:
   - >-
     ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG1vbGVjdWxlLXRlc3Qta2V5
     molecule@flint2-ansible
+flint2_bridge_enabled: true
+flint2_bridge_option_keys:
+  - igmp_snooping
+  - multicast_querier
+flint2_bridge:
+  name: br-lan
+  igmp_snooping: "1"
+  multicast_querier: "1"
 flint2_dropbear_password_auth: "off"
 flint2_dropbear_root_password_auth: "off"
 flint2_ssh_require_authorized_keys: true

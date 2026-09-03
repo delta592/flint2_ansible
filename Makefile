@@ -208,6 +208,12 @@ system: install
 ntp: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags ntp,always
 
+## Configure br-lan IGMP snooping and multicast querier (E1/E2)
+.PHONY: network
+network: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags network,always
+
+
 ## Install LuCI Statistics and enable collectd thermal/sensors graphs
 .PHONY: statistics
 statistics: install

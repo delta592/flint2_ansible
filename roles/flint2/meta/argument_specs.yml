@@ -3,7 +3,7 @@ argument_specs:
   main:
     short_description: Configure a GL.iNet GL-MT6000 (Flint 2) running OpenWrt
     description:
-      - Apply system, wireless, TLS, SSH, statistics, and verification settings to a Flint 2 device.
+      - Apply system, wireless, LAN bridge multicast, TLS, SSH, statistics, and verification settings to a Flint 2 device.
       - GL.iNet-specific UCI keys are used where required; TLS and wireless checks can be disabled for test environments.
     author: delta592
     options:
@@ -40,6 +40,50 @@ argument_specs:
       flint2_management_ip:
         type: str
         description: Expected management IP address for documentation and validation.
+      flint2_bridge_enabled:
+        type: bool
+        default: true
+        description: >-
+          Apply and verify IGMP snooping and multicast querier on the LAN
+          bridge device section (CLIENT_PERF E1/E2) when true.
+      flint2_bridge_option_keys:
+        type: list
+        elements: str
+        default:
+          - igmp_snooping
+          - multicast_querier
+        description: >-
+          Bridge device option keys copied from flint2_bridge onto the
+          matching network device section.
+      flint2_bridge:
+        type: dict
+        description: >-
+          LAN bridge multicast settings. Applied to the network device
+          section whose name and type match (never network.@device[N]).
+        options:
+          name:
+            type: str
+            default: br-lan
+            description: Bridge device name (network device option name).
+          igmp_snooping:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              Enable IGMP/MLD snooping on the bridge (UCI
+              network.<device>.igmp_snooping; sysfs multicast_snooping).
+          multicast_querier:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              Enable a multicast querier on the bridge so snooping
+              memberships do not expire (UCI multicast_querier).
+
       flint2_packages_present:
         type: list
         elements: str
@@ -367,7 +411,13 @@ argument_specs:
         type: bool
         default: true
         description: Fail verification when authorized_keys is missing or empty.
-      flint2_verify_glinet_settings:
+      flint2_verify_live_bridge:
+        type: bool
+        default: true
+        description: >-
+          When true, verify that /sys/class/net/<bridge>/bridge/multicast_snooping
+          and multicast_querier match flint2_bridge after UCI apply. Disable in
+          Molecule containers that have no kernel bridge.      flint2_verify_glinet_settings:
         type: bool
         default: true
         description: Validate GL.iNet-specific UCI settings such as glconfig.general.mode.

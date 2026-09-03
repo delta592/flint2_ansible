@@ -27,6 +27,18 @@ flint2_lan_proto: dhcp
 flint2_wan_device: eth1
 flint2_br_lan_mac: "94:83:c4:e3:f4:31"
 
+# E1/E2: IGMP snooping + multicast querier on the br-lan *device* section
+# (not network.lan). Apply with make network from the wired LAN.
+flint2_bridge_enabled: true
+flint2_bridge_option_keys:
+  - igmp_snooping
+  - multicast_querier
+flint2_bridge:
+  name: br-lan
+  igmp_snooping: "1"
+  multicast_querier: "1"
+
+
 flint2_fqdn: wapap1003.federation.lcars
 flint2_management_ip: 192.168.0.247
 flint2_pfsense_gateway: 192.168.0.250

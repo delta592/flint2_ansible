@@ -83,3 +83,25 @@
       community.openwrt.uci:
         command: commit
         config: upgrade
+
+    - name: Ensure network UCI config exists in the container rootfs
+      community.openwrt.command:
+        cmd: test -f /etc/config/network || touch /etc/config/network
+        uses_shell: true
+      changed_when: false
+
+    - name: Seed synthetic br-lan bridge device section
+      community.openwrt.uci:
+        command: section
+        config: network
+        type: device
+        find:
+          name: "{{ flint2_bridge.name }}"
+        set_find: true
+        value:
+          type: bridge
+
+    - name: Commit seeded network UCI configuration
+      community.openwrt.uci:
+        command: commit
+        config: network

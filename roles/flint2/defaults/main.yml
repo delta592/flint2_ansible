@@ -10,6 +10,17 @@ flint2_network_mode: router
 flint2_lan_proto: static
 flint2_wan_device: eth1
 
+# E1/E2: IGMP snooping + multicast querier on the LAN bridge device section
+flint2_bridge_enabled: true
+flint2_bridge_option_keys:
+  - igmp_snooping
+  - multicast_querier
+flint2_bridge:
+  name: br-lan
+  igmp_snooping: "1"
+  multicast_querier: "1"
+
+
 flint2_wireless_device_option_keys:
   - band
   - htmode
@@ -166,3 +177,4 @@ flint2_verify_glinet_settings: true
 # Live runtime checks need a real router (Docker test containers cannot set kernel hostname or broadcast Wi-Fi).
 flint2_verify_live_hostname: true
 flint2_verify_live_wireless: true
+flint2_verify_live_bridge: true

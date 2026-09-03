@@ -51,3 +51,29 @@
     uses_shell: true
   register: flint2_apply
   changed_when: flint2_uci_commit is changed
+
+# E1/E2 take effect in the kernel, not from uci commit alone. Writing sysfs
+# avoids /etc/init.d/network reload, which would bounce br-lan (management IP).
+# Run only when the bridge UCI actually changed; skip when the sysfs knobs
+# are absent (Molecule containers).
+- name: Apply LAN bridge multicast settings to the running kernel
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_bridge_uci_changed | default(false) | bool
+  tags: [always]
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      bridge="{{ flint2_bridge.name }}"
+      snooping="{{ flint2_bridge.igmp_snooping }}"
+      querier="{{ flint2_bridge.multicast_querier }}"
+      sysfs="/sys/class/net/${bridge}/bridge"
+      if [ ! -d "$sysfs" ]; then
+        echo "skipping live bridge apply; ${sysfs} not present"
+        exit 0
+      fi
+      printf '%s\n' "$snooping" > "${sysfs}/multicast_snooping"
+      printf '%s\n' "$querier" > "${sysfs}/multicast_querier"
+    uses_shell: true
+  register: flint2_bridge_live_apply
+  changed_when: flint2_bridge_live_apply.stdout is not search('skipping live bridge apply')

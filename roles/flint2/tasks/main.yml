@@ -27,6 +27,13 @@
       tags: [ntp]
   tags: [ntp]
 
+- name: Configure Flint 2 LAN bridge multicast
+  ansible.builtin.include_tasks:
+    file: network.yml
+    apply:
+      tags: [network]
+  tags: [network]
+
 - name: Configure Flint 2 wireless networks
   ansible.builtin.include_tasks:
     file: wireless.yml

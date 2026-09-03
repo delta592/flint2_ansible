@@ -1,0 +1,44 @@
+---
+# E1/E2: IGMP snooping + multicast querier on the br-lan *device* section.
+# Target by name/type, never network.@device[N] (positional indices shift).
+# Do not create the bridge if it is missing — fail instead.
+
+- name: Find LAN bridge device section
+  when: flint2_bridge_enabled | default(true) | bool
+  community.openwrt.uci:
+    command: find
+    config: network
+    type: device
+    find:
+      name: "{{ flint2_bridge.name }}"
+      type: bridge
+  register: flint2_bridge_section_find
+  changed_when: false
+  failed_when: false
+
+- name: Assert LAN bridge device section exists
+  when: flint2_bridge_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_bridge_section_find.result | default('') | trim | length > 0
+    fail_msg: >-
+      No network device section with name='{{ flint2_bridge.name }}' and
+      type=bridge. E1/E2 belong on that device section, not network.lan.
+
+- name: Configure LAN bridge multicast options
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_bridge[item] is defined
+  community.openwrt.uci:
+    command: set
+    key: "network.{{ flint2_bridge_section_find.result }}.{{ item }}"
+    value: "{{ flint2_bridge[item] }}"
+  loop: "{{ flint2_bridge_option_keys | default(['igmp_snooping', 'multicast_querier']) }}"
+  loop_control:
+    label: "{{ flint2_bridge.name }}.{{ item }}={{ flint2_bridge[item] | default('') }}"
+  register: flint2_bridge_options
+
+- name: Record whether LAN bridge multicast UCI changed
+  when: flint2_bridge_enabled | default(true) | bool
+  ansible.builtin.set_fact:
+    flint2_bridge_uci_changed: "{{ flint2_bridge_options.results | default([]) | map(attribute='changed') | select | list | length > 0 }}"

@@ -198,6 +198,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `system` | `system.yml` | Hostname, LuCI 24-hour clock |
 | `upgrade` | `upgrade.yml` | GL.iNet Automatic Update Check (`upgrade.general.upgrade_enable`) |
 | `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
+| `network` | `network.yml` | `br-lan` IGMP snooping + multicast querier (E1/E2) |
 | `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
 | `usteer` | `usteer.yml` | Active AP-side band steering (usteer + luci-app-usteer) |
 | `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |
@@ -220,6 +221,7 @@ make ssh
 make access-control   # includes luci tag
 make statistics       # LuCI Statistics thermal graphs
 make usteer           # active AP-side band steering
+make network          # br-lan IGMP snooping + multicast querier (E1/E2)
 ansible-playbook playbooks/site.yml --tags wireless,tls,nginx,always
 ```
 

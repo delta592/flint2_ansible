@@ -993,6 +993,85 @@
     label: "{{ item.item.0 }}.{{ item.item.1 }}"
   no_log: "{{ item.item.1 == 'key' }}"
 
+- name: Find LAN bridge device section for verification
+  when: flint2_bridge_enabled | default(true) | bool
+  community.openwrt.uci:
+    command: find
+    config: network
+    type: device
+    find:
+      name: "{{ flint2_bridge.name }}"
+      type: bridge
+  register: flint2_verify_bridge_section
+  changed_when: false
+  failed_when: false
+
+- name: Assert LAN bridge device section exists
+  when: flint2_bridge_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_bridge_section.result | default('') | trim | length > 0
+    fail_msg: >-
+      No network device section with name='{{ flint2_bridge.name }}' and
+      type=bridge (E1/E2 target the device section, not network.lan)
+
+- name: Read configured LAN bridge multicast options
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_bridge[item] is defined
+  community.openwrt.uci:
+    command: get
+    key: "network.{{ flint2_verify_bridge_section.result }}.{{ item }}"
+  loop: "{{ flint2_bridge_option_keys | default(['igmp_snooping', 'multicast_querier']) }}"
+  loop_control:
+    label: "{{ flint2_bridge.name }}.{{ item }}"
+  register: flint2_verify_bridge_options
+  changed_when: false
+
+- name: Assert LAN bridge multicast options match desired values
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_verify_bridge_options.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == flint2_bridge[item.item]
+    fail_msg: >-
+      network.{{ flint2_verify_bridge_section.result }}.{{ item.item }} is
+      '{{ item.result }}', expected '{{ flint2_bridge[item.item] }}'
+  loop: "{{ flint2_verify_bridge_options.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ flint2_bridge.name }}.{{ item.item }}"
+
+- name: Read live LAN bridge multicast sysfs knobs
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_verify_live_bridge | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      bridge="{{ flint2_bridge.name }}"
+      sysfs="/sys/class/net/${bridge}/bridge"
+      test -d "$sysfs"
+      cat "${sysfs}/multicast_snooping"
+      cat "${sysfs}/multicast_querier"
+    uses_shell: true
+  register: flint2_verify_bridge_sysfs
+  changed_when: false
+
+- name: Assert live LAN bridge multicast knobs match desired values
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_verify_live_bridge | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_bridge_sysfs.stdout_lines[0] | trim == flint2_bridge.igmp_snooping | string
+      - flint2_verify_bridge_sysfs.stdout_lines[1] | trim == flint2_bridge.multicast_querier | string
+    fail_msg: >-
+      Live {{ flint2_bridge.name }} multicast_snooping/querier is
+      '{{ flint2_verify_bridge_sysfs.stdout_lines | default([]) | join('/') }}',
+      expected {{ flint2_bridge.igmp_snooping }}/{{ flint2_bridge.multicast_querier }}
+      (UCI is not enough; kernel sysfs must match)
+
 - name: Read Dropbear authentication policy
   community.openwrt.uci:
     command: get
