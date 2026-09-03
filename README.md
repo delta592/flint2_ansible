@@ -13,7 +13,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 - **Statistics** — LuCI Statistics (`collectd`) with thermal and sensors graphs under **Statistics → Graphs**
 - **Access Control** — GL.iNet admin panel, LuCI, and SSH ports, Force HTTPS, and auto-logout
 - **TLS** — private CA certificates on nginx (GL.iNet UI, port 443) and uHTTPd (LuCI, port 8443)
-- **SSH** — Dropbear hardening (password auth off) and `authorized_keys` management
+- **SSH** — OpenSSH server with ssh-audit-hardened algorithms (PQ KEX, ETM MACs), password auth off, and `authorized_keys` management (replaces stock Dropbear)
 - **Verify** — post-apply checks for hostname, wireless, guest/IoT disabled state, and TLS fingerprints
 - **Tagged runs** — apply or validate individual areas via Makefile targets or `--tags`
 
@@ -114,7 +114,7 @@ Optional environment variables:
 | `MOLECULE_OPENWRT_REBUILD=true` | Force rebuild of the local 25.12.5 rootfs image |
 | `MOLECULE_OPENWRT_PRUNE_IMAGE=true` | Remove the local 25.12.5 image during `molecule destroy` |
 
-The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`) and a GL.iNet-style `upgrade.general` section, then applies and verifies the `packages`, `system`, `ntp`, `wireless`, `upgrade`, and `ssh` task files. TLS and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
+The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), a `br-lan` bridge device section, and a GL.iNet-style `upgrade.general` section, then applies and verifies the `packages`, `system`, `ntp`, `network`, `wireless`, `upgrade`, and `ssh` task files. TLS and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
@@ -144,9 +144,9 @@ The main wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via
 
 ### Bootstrap SSH (first run after reset)
 
-Normal targets expect key-based SSH. After a factory reset or firmware upgrade, Dropbear has a temporary root password and no `authorized_keys` yet — a chicken-and-egg problem until the `ssh` role runs.
+Normal targets expect key-based SSH. After a factory reset or firmware upgrade, the stock **Dropbear** daemon has a temporary root password and no `authorized_keys` yet. The `ssh` role installs **OpenSSH**, deploys keys to `/root/.ssh/authorized_keys`, applies algorithm hardening, and disables Dropbear.
 
-1. Clear stale host keys if the router was re-flashed:
+1. Clear stale host keys and any SSH ControlMaster still attached to the old daemon:
 
 ```bash
 make known-hosts-reset
@@ -159,7 +159,7 @@ cp inventory/bootstrap.yml.example .secrets/bootstrap.yml
 # Edit ansible_ssh_pass to the current temporary root password
 ```
 
-3. Run the playbook with password auth (deploys keys, then disables password login):
+3. Run the playbook with password auth (installs OpenSSH + keys, then disables password login):
 
 ```bash
 make ping-bootstrap
@@ -176,7 +176,7 @@ make ping
 rm .secrets/bootstrap.yml
 ```
 
-Bootstrap vars set `PubkeyAuthentication=no` and `PreferredAuthentications=password` so Ansible does not offer your local agent key first and fail before trying the temp password.
+Bootstrap vars prefer password first, then publickey, so the first connection can use the temporary root password; after keys are installed and OpenSSH is cut over, later tasks reconnect with your Ed25519 key.
 
 ## Configuration
 
@@ -206,8 +206,8 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `statistics` | `statistics.yml` | LuCI Statistics, collectd, and thermal/sensors plugins |
 | `tls` | `tls.yml` | Certificate deployment |
 | `nginx` | `nginx.yml` | GL.iNet nginx security headers / HSTS (`gl-conf.d`) |
-| `ssh` | `ssh.yml` | Dropbear and authorized keys |
-| `always` | `apply.yml` | UCI commit and service restarts (runs with every partial Make target) |
+| `ssh` | `ssh.yml` | OpenSSH hardening drop-in, keys; disables Dropbear |
+| `always` | `apply.yml` | UCI commit and service reloads (runs with every partial Make target) |
 | `verify` | `verify.yml` | Post-apply validation |
 
 Partial Make targets (for example `make system`) pass `--tags <area>,always` so UCI changes are committed before verification.
@@ -217,7 +217,8 @@ Run a subset with Make or Ansible directly:
 ```bash
 make tls
 make nginx            # HSTS + security headers (F-07/F-09)
-make ssh
+make ssh              # OpenSSH algorithm hardening + authorized_keys
+make ssh-audit        # re-scan the live listener (requires ~/scripts/ssh-audit)
 make access-control   # includes luci tag
 make statistics       # LuCI Statistics thermal graphs
 make usteer           # active AP-side band steering
@@ -247,9 +248,9 @@ playbooks/
 inventory/
   hosts.yml
   group_vars/
-    openwrt.yml             # OpenWrt collection defaults, SCP -O for Dropbear
+    openwrt.yml             # OpenWrt collection defaults, SCP -O (bootstrap/Dropbear safe)
     flint2/main.yml         # Flint 2 device and service variables
-  host_vars/router.yml      # ansible_host and Dropbear KEX options
+  host_vars/router.yml      # ansible_host and OpenSSH client algorithm args
 
 roles/flint2/               # Main configuration role
   meta/argument_specs.yml   # Role variable validation
@@ -265,14 +266,37 @@ docs/
   ansible_best_practices.md
 ```
 
-## Dropbear and SCP
+## SSH (OpenSSH) and SCP
 
-GL.iNet firmware ships Dropbear without an SFTP server. The [`community.openwrt.init`](https://docs.ansible.com/ansible/latest/collections/community/openwrt/init_module.html) module uploads files over SCP, so this project forces legacy SCP mode:
+GL.iNet OP25 ships **Dropbear** by default. This role sets `flint2_ssh_backend: openssh` and:
+
+1. Installs `openssh-server`, `openssh-keygen`, `openssh-sftp-server`, and `dropbearconvert`
+2. Deploys `/etc/ssh/sshd_config.d/99-flint2-hardening.conf` (ssh-audit OpenSSH 10.x suite: PQ KEX, AEAD/CTR ciphers, ETM-only MACs, ed25519 host key)
+3. Installs root keys in `/root/.ssh/authorized_keys` and disables password auth
+4. Disables Dropbear (`dropbear.main.enable=0`) and binds sshd to the management IP
+5. Reloads sshd with a post-bounce `wait_for_connection` so Ansible reconnects cleanly
+
+Inventory client args in [`inventory/host_vars/router.yml`](inventory/host_vars/router.yml) match the server suite and set `ControlMaster=no` so a mux cannot hold an old Dropbear session across cutover. After firmware reset, run `make known-hosts-reset` (also exits stale ControlMaster sockets).
+
+Re-audit after changes:
+
+```bash
+make ssh
+make ssh-audit          # SSH_AUDIT_HOST=192.168.0.247 by default
+```
+
+Independent checks (not your local `~/.ssh/config`): `nmap -p 22 --script ssh2-enum-algos <host>` or `uvx --from ssh-audit ssh-audit --skip-rate-test <host>`.
+
+### SCP during bootstrap
+
+Stock Dropbear has no SFTP server. Until OpenSSH is cut over, Ansible and manual `scp` need legacy SCP (`-O`):
 
 - [`ansible.cfg`](ansible.cfg) — `scp_extra_args = -O`
 - [`inventory/group_vars/openwrt.yml`](inventory/group_vars/openwrt.yml) — `ansible_ssh_transfer_method: scp` and `ansible_scp_extra_args: "-O"`
 
-Without this, Ansible tries SFTP first, Dropbear reports `/usr/libexec/sftp-server: not found`, and you see a harmless-but-noisy warning before SCP fallback. `playbooks/ping.yml` includes the `community.openwrt.init` role so connection settings match `site.yml`.
+Those settings remain after OpenSSH is installed so bootstrap and day-2 runs share one inventory. With OpenSSH’s `sftp-server` present, SFTP would also work; keeping `-O` avoids a Dropbear-only bootstrap path.
+
+`playbooks/ping.yml` includes the `community.openwrt.init` role so connection settings match `site.yml`.
 
 ## TLS verification
 

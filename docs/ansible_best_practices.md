@@ -15,6 +15,7 @@
 | Reproducible Ansible runtime image           | **Ansible Builder**                               | Builds containerized Ansible Execution Environments.                                                               |
 | Running Execution Environments               | **ansible-navigator**                             | Runs playbooks inside Execution Environment containers.                                                            |
 | Developer command interface                  | **Make** / **Makefile**                           | Provides consistent commands such as `make lint`, `make test`, and `make check`.                                   |
+| SSH algorithm audit                          | **ssh-audit** / **nmap ssh2-enum-algos**          | Validates the live OpenSSH listener (`make ssh-audit`, or nmap without local client config).                       |
 | CI automation                                | **GitHub Actions**                                | Runs linting and tests automatically for pushes and pull requests.                                                 |
 | Secret scanning                              | **Gitleaks**                                      | Detects passwords, tokens, keys, and other secrets accidentally committed to Git.                                  |
 | Ansible dependency installation              | **ansible-galaxy**                                | Installs roles and collections listed in `requirements.yml`.                                                       |

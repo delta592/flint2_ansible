@@ -71,21 +71,35 @@ openssl x509 \
 
 ---
 
-## 2. Add the SSH host override
+## 2. SSH access (bootstrap vs day-2)
 
-The Flint 2 uses Dropbear SSH. If the Mac's OpenSSH client cannot negotiate a key-exchange method, add this host-specific entry to `~/.ssh/config`:
+After Ansible (`make ssh` / `make site`), the Flint runs **OpenSSH 10.x** with an ssh-audit-hardened algorithm suite (PQ KEX, ETM MACs, ed25519 host key). Stock **Dropbear** is disabled.
+
+### Day-2 (key-based OpenSSH)
+
+```bash
+make known-hosts-reset   # after firmware reset or host-key change; also exits ControlMaster
+ssh root@192.168.0.247
+# or:
+ssh wapap1003
+```
+
+Ansible client options in [`inventory/host_vars/router.yml`](../inventory/host_vars/router.yml) already match the server suite and disable ControlMaster so a mux cannot hold an old Dropbear session across cutover.
+
+### Bootstrap (factory Dropbear + temporary password)
+
+Only needed before OpenSSH cutover. Copy [`inventory/bootstrap.yml.example`](../inventory/bootstrap.yml.example) to `.secrets/bootstrap.yml` for Ansible, or use a one-shot client config that still allows Dropbear’s older KEX:
 
 ```sshconfig
-Host wapap1003 192.168.0.247
+Host wapap1003-bootstrap 192.168.0.247
     HostName 192.168.0.247
     User root
     KexAlgorithms +curve25519-sha256,curve25519-sha256@libssh.org
-    PubkeyAuthentication no
-    PreferredAuthentications password
+    PreferredAuthentications password,publickey
     PasswordAuthentication yes
 ```
 
-For Ansible bootstrap runs, copy [`inventory/bootstrap.yml.example`](../inventory/bootstrap.yml.example) to `.secrets/bootstrap.yml` instead of editing `~/.ssh/config`. See [README → Bootstrap SSH](../README.md#bootstrap-ssh-first-run-after-reset).
+See [README → Bootstrap SSH](../README.md#bootstrap-ssh-first-run-after-reset).
 
 Protect the configuration file:
 
@@ -97,48 +111,35 @@ Test the effective configuration:
 
 ```bash
 ssh -G wapap1003 | grep -Ei \
-  '^(hostname|user|kexalgorithms|pubkeyauthentication|preferredauthentications|passwordauthentication)'
+  '^(hostname|user|kexalgorithms|hostkeyalgorithms|ciphers|macs|pubkeyauthentication|preferredauthentications|passwordauthentication)'
 ```
 
-Connect using the alias:
-
-```bash
-ssh wapap1003
-```
-
-Or connect by IP:
-
-```bash
-ssh root@192.168.0.247
-```
-
-### Equivalent one-time SSH command-line overrides
-
-Without editing `~/.ssh/config`:
+### Equivalent one-time bootstrap SSH command-line overrides
 
 ```bash
 ssh \
   -o KexAlgorithms=+curve25519-sha256,curve25519-sha256@libssh.org \
-  -o PubkeyAuthentication=no \
-  -o PreferredAuthentications=password \
+  -o PreferredAuthentications=password,publickey \
   -o PasswordAuthentication=yes \
   root@192.168.0.247
 ```
+
+After `make ssh`, prefer key auth only (password auth is disabled on the OpenSSH server).
 
 ---
 
 ## 3. Transfer the certificate and key
 
-Modern OpenSSH `scp` uses SFTP by default. The Flint's Dropbear installation may not include `/usr/libexec/sftp-server`, producing this error:
+Modern OpenSSH `scp` uses SFTP by default. **Before** OpenSSH cutover, stock Dropbear may not include `/usr/libexec/sftp-server`, producing:
 
 ```text
 ash: /usr/libexec/sftp-server: not found
 scp: Connection closed
 ```
 
-Force the legacy SCP protocol with uppercase `-O`.
+Force the legacy SCP protocol with uppercase `-O` for bootstrap/manual transfers. After `make ssh`, OpenSSH’s SFTP server is installed; Ansible still keeps `-O` in inventory so bootstrap and day-2 share one path.
 
-Ansible in this repository already sets `scp -O` via [`ansible.cfg`](../ansible.cfg) and [`inventory/group_vars/openwrt.yml`](../inventory/group_vars/openwrt.yml). Manual `scp` still needs `-O` explicitly.
+Ansible in this repository already sets `scp -O` via [`ansible.cfg`](../ansible.cfg) and [`inventory/group_vars/openwrt.yml`](../inventory/group_vars/openwrt.yml). Manual `scp` still needs `-O` explicitly when talking to Dropbear.
 
 ### Using the SSH-config alias
 
@@ -149,13 +150,12 @@ scp -O \
   wapap1003:/tmp/
 ```
 
-### Using one-time command-line overrides
+### Using one-time command-line overrides (bootstrap / Dropbear)
 
 ```bash
 scp -O \
   -o KexAlgorithms=+curve25519-sha256,curve25519-sha256@libssh.org \
-  -o PubkeyAuthentication=no \
-  -o PreferredAuthentications=password \
+  -o PreferredAuthentications=password,publickey \
   -o PasswordAuthentication=yes \
   wapap1003.key \
   wapap1003-fullchain.crt \

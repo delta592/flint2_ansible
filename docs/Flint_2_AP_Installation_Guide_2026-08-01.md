@@ -2,7 +2,7 @@
 
 This guide documents the successful setup performed on August 1, 2026, beginning with a factory reset and ending with a working Flint 2 access point on the existing pfSense-managed LAN.
 
-It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25** (OpenWrt **25.12.5**) and validating the [`flint2_ansible`](../README.md) playbooks against the live device. Wireless radio settings were aligned with the security audit remediations (**F-06** / **F-08**) on 2026-08-23: 2.4 GHz **HE20** on channel **11**, 5 GHz **HE80** on channel **36**.
+It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25** (OpenWrt **25.12.5**) and validating the [`flint2_ansible`](../README.md) playbooks against the live device. Wireless radio settings were aligned with the security audit remediations (**F-06** / **F-08**) on 2026-08-23: 2.4 GHz **HE20** on channel **11**, 5 GHz **HE80** on channel **36**. SSH was migrated from stock Dropbear to **OpenSSH** with ssh-audit algorithm hardening in September 2026 (`make ssh` / `make ssh-audit`).
 
 ## Final working configuration
 
@@ -36,7 +36,7 @@ It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25**
 | GL.iNet UI | `https://wapap1003.federation.lcars/` (nginx, port 443) |
 | LuCI HTTP / HTTPS | ports `8080` / `8443` (uHTTPd) |
 | LuCI | `https://wapap1003.federation.lcars:8443/` |
-| SSH | `root@wapap1003` port 22, public-key only (after Ansible) |
+| SSH | `root@wapap1003` port 22, OpenSSH public-key only (after Ansible; Dropbear disabled) |
 
 ### Ansible-managed settings
 
@@ -532,21 +532,22 @@ A separate detailed guide was created for:
 - Installing the TLS certificate on nginx
 - Installing the TLS certificate on uHTTPd/LuCI
 - Verifying ports 443 and 8443
-- Dropbear/OpenSSH key-exchange overrides
-- Password-only bootstrap access
-- Legacy SCP mode using `scp -O`
+- Bootstrap Dropbear access vs day-2 OpenSSH
+- OpenSSH algorithm hardening (ssh-audit suite)
+- Legacy SCP mode using `scp -O` (bootstrap-safe)
 - SSH public-key authentication
-- Disabling password fallback client-side
-- Clearing SSH ControlMaster sessions
+- Clearing SSH ControlMaster sessions (`make known-hosts-reset`)
 
 Insert or link that guide here:
 
 [Flint_2_TLS_Certificate_Installation_Guide.md](Flint_2_TLS_Certificate_Installation_Guide.md)
 
-Or apply TLS with Ansible:
+Or apply TLS / SSH with Ansible:
 
 ```bash
 make tls
+make ssh
+make ssh-audit
 make verify
 ```
 
@@ -567,10 +568,12 @@ Verify return code: 0 (ok)
 
 ## 15. Validate SSH public-key-only login
 
+After `make ssh`, the live listener is **OpenSSH** (not Dropbear), with password authentication disabled server-side and an ssh-audit-hardened algorithm list.
+
 The SSH test used:
 
 ```bash
-ssh -O exit wapap1003 2>/dev/null || true
+make known-hosts-reset
 ssh -vvv \
   -o BatchMode=yes \
   -o IdentitiesOnly=yes \
@@ -588,7 +591,12 @@ Authenticated to 192.168.0.247 ([192.168.0.247]:22) using "publickey".
 
 This proved the login succeeded using the Ed25519 key and did not fall back to password authentication.
 
-The Dropbear server still advertised password authentication as available server-side, but the client test explicitly prohibited using it.
+Independent algorithm checks (bypass local client hardening):
+
+```bash
+make ssh-audit
+nmap -Pn -p 22 --script ssh2-enum-algos 192.168.0.247
+```
 
 ---
 
@@ -691,14 +699,15 @@ This repository automates post-prerequisite configuration. Inventory values live
 
 ### First run after factory reset (bootstrap SSH)
 
-Dropbear has a temporary root password and no `authorized_keys` until the `ssh` role runs:
+Stock Dropbear has a temporary root password and no `authorized_keys` until the `ssh` role installs OpenSSH, deploys keys, and disables Dropbear:
 
 ```bash
+make known-hosts-reset
 cp inventory/bootstrap.yml.example .secrets/bootstrap.yml
 # Edit ansible_ssh_pass, then:
 make ping-bootstrap
 make site-bootstrap
-make ping          # confirm key-based login
+make ping          # confirm key-based OpenSSH login
 rm .secrets/bootstrap.yml
 ```
 
@@ -711,7 +720,7 @@ make site          # full configuration
 make verify        # post-apply checks (includes TLS when enabled)
 ```
 
-Partial targets automatically run the `always`-tagged UCI commit/apply step (for example `make system`, `make wireless`).
+Partial targets automatically run the `always`-tagged UCI commit/apply step (for example `make system`, `make wireless`). Apply reloads OpenSSH with `wait_for_connection` so a brief SSH bounce does not fail the play.
 
 | Make target | Ansible tags | Purpose |
 |---|---|---|
@@ -719,10 +728,13 @@ Partial targets automatically run the `always`-tagged UCI commit/apply step (for
 | `make wireless` | `wireless,always` | ARGUS SSID, radio options, and usteer (usteer tag included) |
 | `make usteer` | `usteer,always` | Install/configure usteer active band steering |
 | `make ntp` | `ntp,always` | chronyd upstream NTP |
+| `make network` | `network,always` | br-lan IGMP snooping + multicast querier (E1/E2) |
 | `make statistics` | `statistics,always` | LuCI Statistics thermal/sensors graphs |
 | `make access-control` | `access_control,luci,always` | Admin/LuCI ports, LuCI install |
 | `make tls` | `tls,always` | nginx + uHTTPd certificates |
 | `make nginx` | `nginx,always` | HSTS + security headers in `gl-conf.d` (F-07/F-09) |
-| `make ssh` | `ssh,always` | Dropbear hardening and keys |
+| `make ssh` | `ssh,always` | OpenSSH hardening drop-in, keys; disable Dropbear |
+| `make ssh-audit` | *(host scan)* | Audit live SSH algorithms (`SSH_AUDIT_HOST` defaults to `192.168.0.247`) |
+| `make known-hosts-reset` | *(local)* | Clear known_hosts + exit ControlMaster sockets |
 
 Wireless UCI on OP25 uses `radio0`/`default_radio0` and `radio1`/`default_radio1` (not legacy GL.iNet names `mt798611`/`wifi2g`).
