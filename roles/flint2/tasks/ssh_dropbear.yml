@@ -1,0 +1,110 @@
+---
+# Legacy Dropbear path (Molecule / optional). Cannot clear NIST ECDH KEX FAILs.
+
+- name: Disable Dropbear password authentication
+  when: flint2_dropbear_password_auth is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.PasswordAuth
+    value: "{{ flint2_dropbear_password_auth }}"
+
+- name: Disable Dropbear root password authentication
+  when: flint2_dropbear_root_password_auth is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.RootPasswordAuth
+    value: "{{ flint2_dropbear_root_password_auth }}"
+
+- name: Set Dropbear MaxAuthTries
+  when: flint2_dropbear_max_auth_tries is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.MaxAuthTries
+    value: "{{ flint2_dropbear_max_auth_tries }}"
+
+- name: Set Dropbear IdleTimeout
+  when: flint2_dropbear_idle_timeout is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.IdleTimeout
+    value: "{{ flint2_dropbear_idle_timeout }}"
+
+- name: Disable Dropbear mDNS advertisement
+  when: flint2_dropbear_mdns is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.mdns
+    value: "{{ flint2_dropbear_mdns }}"
+
+- name: Bind Dropbear to configured network Interface
+  when: flint2_dropbear_interface is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.Interface
+    value: "{{ flint2_dropbear_interface }}"
+
+- name: Ensure Dropbear authorized_keys directory exists
+  when: flint2_ssh_authorized_keys | length > 0
+  community.openwrt.file:
+    path: /etc/dropbear
+    state: directory
+    mode: "0755"
+
+- name: Ensure Dropbear ed25519 host key exists
+  when: flint2_dropbear_keyfiles | default([]) | length > 0
+  community.openwrt.command:
+    cmd: |
+      set -eu
+      key=/etc/dropbear/dropbear_ed25519_host_key
+      if [ ! -s "$key" ]; then
+        mkdir -p /etc/dropbear
+        dropbearkey -t ed25519 -f "$key"
+        chmod 0600 "$key"
+        echo generated
+      else
+        echo present
+      fi
+    uses_shell: true
+  register: flint2_dropbear_ed25519_host_key
+  changed_when: flint2_dropbear_ed25519_host_key.stdout is search('generated')
+
+- name: Read Dropbear host keyfile list
+  when: flint2_dropbear_keyfiles is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.keyfile
+  register: flint2_dropbear_keyfile_current
+  failed_when: false
+  changed_when: false
+
+- name: Clear Dropbear host keyfile list when it differs from desired
+  when:
+    - flint2_dropbear_keyfiles is defined
+    - (flint2_dropbear_keyfile_current.result_list | default([]) | list) | length > 0
+    - (flint2_dropbear_keyfile_current.result_list | default([]) | list) != (flint2_dropbear_keyfiles | list)
+  community.openwrt.uci:
+    command: absent
+    key: dropbear.main.keyfile
+
+- name: Restrict Dropbear to configured host key files
+  when:
+    - flint2_dropbear_keyfiles is defined
+    - (flint2_dropbear_keyfile_current.result_list | default([]) | list) != (flint2_dropbear_keyfiles | list)
+  community.openwrt.uci:
+    command: add_list
+    key: dropbear.main.keyfile
+    value: "{{ item }}"
+    unique: true
+  loop: "{{ flint2_dropbear_keyfiles }}"
+
+- name: Install SSH public keys for root (Dropbear)
+  when: flint2_ssh_authorized_keys | length > 0
+  community.openwrt.lineinfile:
+    path: /etc/dropbear/authorized_keys
+    line: "{{ item }}"
+    create: true
+    mode: "0600"
+    state: present
+  loop: "{{ flint2_ssh_authorized_keys }}"
+  loop_control:
+    label: "{{ item.split()[0] }} {{ item.split()[1] if item.split() | length > 1 else 'key' }}"

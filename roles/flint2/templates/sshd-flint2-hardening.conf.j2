@@ -1,0 +1,40 @@
+# Flint 2 OpenSSH hardening — ssh-audit guide for OpenSSH 10.x
+# (PQ KEX + AEAD/CTR ciphers + ETM-only MACs; ed25519 host key only).
+
+Port {{ flint2_access_control.ssh.port | default(22) }}
+{% if flint2_sshd_listen_address is defined and flint2_sshd_listen_address | length > 0 %}
+ListenAddress {{ flint2_sshd_listen_address }}
+{% endif %}
+
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+Protocol 2
+PermitRootLogin {{ flint2_sshd_permit_root_login }}
+PubkeyAuthentication yes
+PasswordAuthentication {{ flint2_sshd_password_authentication }}
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+X11Forwarding no
+AllowTcpForwarding no
+GatewayPorts no
+PermitTunnel no
+Compression no
+
+MaxAuthTries {{ flint2_sshd_max_auth_tries }}
+LoginGraceTime {{ flint2_sshd_login_grace_time }}
+ClientAliveInterval {{ flint2_sshd_client_alive_interval }}
+ClientAliveCountMax {{ flint2_sshd_client_alive_count_max }}
+{% if flint2_sshd_per_source_max_startups is defined and (flint2_sshd_per_source_max_startups | string | length) > 0 %}
+PerSourceMaxStartups {{ flint2_sshd_per_source_max_startups }}
+{% endif %}
+MaxStartups {{ flint2_sshd_max_startups }}
+
+KexAlgorithms {{ flint2_sshd_kex_algorithms }}
+HostKeyAlgorithms {{ flint2_sshd_host_key_algorithms }}
+PubkeyAcceptedAlgorithms {{ flint2_sshd_pubkey_accepted_algorithms }}
+Ciphers {{ flint2_sshd_ciphers }}
+MACs {{ flint2_sshd_macs }}
+
+AuthorizedKeysFile .ssh/authorized_keys
+PrintMotd no
+Subsystem sftp /usr/lib/sftp-server

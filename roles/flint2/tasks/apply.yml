@@ -9,6 +9,9 @@
     command: commit
   register: flint2_uci_commit
 
+# SSH bounce is last and may drop this session. Prefer sshd reload (SIGHUP)
+# over restart so the controlling connection usually survives; still treat
+# UNREACHABLE as recoverable and wait below.
 - name: Reload services after UCI apply
   tags: [always]
   community.openwrt.command:
@@ -45,12 +48,41 @@
       if [ -x /etc/init.d/usteer ]; then
         /etc/init.d/usteer restart
       fi
+      {% if flint2_ssh_backend | default('openssh') == 'openssh' %}
+      if [ -x /etc/init.d/sshd ]; then
+        /etc/init.d/dropbear stop 2>/dev/null || true
+        killall dropbear 2>/dev/null || true
+        if pidof sshd >/dev/null 2>&1; then
+          /etc/init.d/sshd reload || /etc/init.d/sshd restart
+        else
+          /etc/init.d/sshd restart
+        fi
+        echo FLINT2_SSH_RELOADED
+      fi
+      {% else %}
       if [ -x /etc/init.d/dropbear ]; then
         /etc/init.d/dropbear restart
+        echo FLINT2_SSH_RELOADED
       fi
+      {% endif %}
     uses_shell: true
   register: flint2_apply
   changed_when: flint2_uci_commit is changed
+  ignore_unreachable: true
+
+- name: Wait for SSH after apply service reload
+  when:
+    - not ansible_check_mode
+    - >-
+      (flint2_apply is unreachable)
+      or (flint2_apply.stdout is defined
+          and flint2_apply.stdout is search('FLINT2_SSH_RELOADED'))
+  tags: [always]
+  community.openwrt.wait_for_connection:
+    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
+    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
+    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"
 
 # E1/E2 take effect in the kernel, not from uci commit alone. Writing sysfs
 # avoids /etc/init.d/network reload, which would bounce br-lan (management IP).

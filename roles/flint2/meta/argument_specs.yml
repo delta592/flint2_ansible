@@ -34,12 +34,6 @@ argument_specs:
       flint2_wan_device:
         type: str
         description: Expected WAN uplink device name.
-      flint2_fqdn:
-        type: str
-        description: Fully qualified domain name used for TLS verification and SNI checks.
-      flint2_management_ip:
-        type: str
-        description: Expected management IP address for documentation and validation.
       flint2_bridge_enabled:
         type: bool
         default: true
@@ -83,7 +77,12 @@ argument_specs:
             description: >-
               Enable a multicast querier on the bridge so snooping
               memberships do not expire (UCI multicast_querier).
-
+      flint2_fqdn:
+        type: str
+        description: Fully qualified domain name used for TLS verification and SNI checks.
+      flint2_management_ip:
+        type: str
+        description: Expected management IP address for documentation and validation.
       flint2_packages_present:
         type: list
         elements: str
@@ -392,7 +391,84 @@ argument_specs:
         type: list
         elements: str
         default: []
-        description: SSH public keys installed into /etc/dropbear/authorized_keys.
+        description: SSH public keys installed for root (OpenSSH and/or Dropbear paths).
+      flint2_ssh_backend:
+        type: str
+        default: openssh
+        choices:
+          - openssh
+          - dropbear
+        description: >-
+          SSH server implementation. openssh is required to enforce KexAlgorithms,
+          HostKeyAlgorithms, Ciphers, and MACs at runtime. dropbear cannot restrict
+          those algorithms without a firmware rebuild.
+      flint2_openssh_packages:
+        type: list
+        elements: str
+        description: Packages installed when flint2_ssh_backend is openssh.
+      flint2_sshd_config_d:
+        type: str
+        default: /etc/ssh/sshd_config.d
+        description: Directory for OpenSSH drop-in configuration snippets.
+      flint2_sshd_hardening_conf_name:
+        type: str
+        default: 99-flint2-hardening.conf
+        description: Filename for the Flint 2 OpenSSH hardening drop-in.
+      flint2_sshd_kex_algorithms:
+        type: str
+        description: sshd KexAlgorithms (ssh-audit OpenSSH 10.x PQ suite by default).
+      flint2_sshd_host_key_algorithms:
+        type: str
+        description: sshd HostKeyAlgorithms.
+      flint2_sshd_pubkey_accepted_algorithms:
+        type: str
+        description: sshd PubkeyAcceptedAlgorithms.
+      flint2_sshd_ciphers:
+        type: str
+        description: sshd Ciphers.
+      flint2_sshd_macs:
+        type: str
+        description: sshd MACs (prefer *-etm@openssh.com).
+      flint2_sshd_password_authentication:
+        type: str
+        default: "no"
+        choices:
+          - "yes"
+          - "no"
+        description: sshd PasswordAuthentication.
+      flint2_sshd_permit_root_login:
+        type: str
+        default: prohibit-password
+        description: sshd PermitRootLogin.
+      flint2_sshd_max_auth_tries:
+        type: int
+        default: 3
+        description: sshd MaxAuthTries.
+      flint2_sshd_login_grace_time:
+        type: int
+        default: 30
+        description: sshd LoginGraceTime seconds.
+      flint2_sshd_client_alive_interval:
+        type: int
+        default: 300
+        description: sshd ClientAliveInterval seconds.
+      flint2_sshd_client_alive_count_max:
+        type: int
+        default: 2
+        description: sshd ClientAliveCountMax.
+      flint2_sshd_per_source_max_startups:
+        type: str
+        default: ""
+        description: >-
+          sshd PerSourceMaxStartups. Empty omits the directive. Value 1 mitigates
+          DHEat but false-positives ssh-audit rate tests and can lock out Ansible.
+      flint2_sshd_max_startups:
+        type: str
+        default: "10:30:60"
+        description: sshd MaxStartups.
+      flint2_sshd_listen_address:
+        type: str
+        description: Optional sshd ListenAddress (e.g. management IP).
       flint2_dropbear_password_auth:
         type: str
         default: "off"
@@ -407,20 +483,49 @@ argument_specs:
           - "on"
           - "off"
         description: Value for dropbear.main.RootPasswordAuth.
+      flint2_dropbear_keyfiles:
+        type: list
+        elements: str
+        default:
+          - /etc/dropbear/dropbear_ed25519_host_key
+        description: >-
+          Host key paths written as dropbear.main.keyfile list entries when
+          flint2_ssh_backend is dropbear.
+      flint2_dropbear_max_auth_tries:
+        type: str
+        default: "3"
+        description: Value for dropbear.main.MaxAuthTries.
+      flint2_dropbear_idle_timeout:
+        type: str
+        default: "300"
+        description: Value for dropbear.main.IdleTimeout (seconds; 0 disables).
+      flint2_dropbear_mdns:
+        type: str
+        default: "0"
+        choices:
+          - "0"
+          - "1"
+        description: Value for dropbear.main.mdns (0 disables SSH mDNS advertisement).
+      flint2_dropbear_interface:
+        type: str
+        description: >-
+          Optional UCI network name for dropbear.main.Interface (e.g. lan). When
+          unset, Dropbear keeps listening on all addresses.
       flint2_ssh_require_authorized_keys:
         type: bool
         default: true
         description: Fail verification when authorized_keys is missing or empty.
+      flint2_verify_glinet_settings:
+        type: bool
+        default: true
+        description: Validate GL.iNet-specific UCI settings such as glconfig.general.mode.
       flint2_verify_live_bridge:
         type: bool
         default: true
         description: >-
           When true, verify that /sys/class/net/<bridge>/bridge/multicast_snooping
           and multicast_querier match flint2_bridge after UCI apply. Disable in
-          Molecule containers that have no kernel bridge.      flint2_verify_glinet_settings:
-        type: bool
-        default: true
-        description: Validate GL.iNet-specific UCI settings such as glconfig.general.mode.
+          Molecule containers that have no kernel bridge.
       flint2_access_control_enabled:
         type: bool
         default: true

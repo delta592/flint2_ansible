@@ -1,0 +1,212 @@
+---
+# OpenSSH server with ssh-audit-hardened algorithm suite.
+# Cutover from Dropbear uses nohup so the controlling SSH session can reconnect.
+
+- name: Install OpenSSH packages with apk
+  when: openwrt_package_manager | default('apk') == 'apk'
+  community.openwrt.apk:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flint2_openssh_packages }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Install OpenSSH packages with opkg
+  when: openwrt_package_manager | default('apk') == 'opkg'
+  community.openwrt.opkg:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ flint2_openssh_packages }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Ensure OpenSSH config directories exist
+  community.openwrt.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/ssh
+    - "{{ flint2_sshd_config_d }}"
+    - /root/.ssh
+
+- name: Disable Dropbear service in UCI (OpenSSH owns port 22)
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.enable
+    value: "0"
+
+- name: Disable Dropbear password authentication
+  when: flint2_dropbear_password_auth is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.PasswordAuth
+    value: "{{ flint2_dropbear_password_auth }}"
+
+- name: Disable Dropbear root password authentication
+  when: flint2_dropbear_root_password_auth is defined
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.RootPasswordAuth
+    value: "{{ flint2_dropbear_root_password_auth }}"
+
+- name: Ensure ed25519 OpenSSH host key exists
+  community.openwrt.command:
+    cmd: |
+      set -eu
+      key=/etc/ssh/ssh_host_ed25519_key
+      pub="${key}.pub"
+      dbkey=/etc/dropbear/dropbear_ed25519_host_key
+      if [ -s "$key" ]; then
+        echo present
+        exit 0
+      fi
+      mkdir -p /etc/ssh
+      if [ -s "$dbkey" ] && command -v dropbearconvert >/dev/null 2>&1; then
+        dropbearconvert dropbear openssh "$dbkey" "$key"
+        chmod 0600 "$key"
+        ssh-keygen -y -f "$key" > "$pub"
+        chmod 0644 "$pub"
+        echo converted
+        exit 0
+      fi
+      ssh-keygen -N '' -t ed25519 -f "$key"
+      chmod 0600 "$key"
+      chmod 0644 "$pub"
+      echo generated
+    uses_shell: true
+  register: flint2_sshd_host_key
+  changed_when: flint2_sshd_host_key.stdout is search('converted|generated')
+
+- name: Remove RSA OpenSSH host key so it is not offered
+  community.openwrt.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/ssh/ssh_host_rsa_key
+    - /etc/ssh/ssh_host_rsa_key.pub
+    - /etc/ssh/ssh_host_ecdsa_key
+    - /etc/ssh/ssh_host_ecdsa_key.pub
+
+- name: Ensure stock sshd_config includes drop-in directory
+  community.openwrt.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^Include /etc/ssh/sshd_config\.d/\*\.conf'
+    line: Include /etc/ssh/sshd_config.d/*.conf
+    insertbefore: BOF
+    create: true
+    mode: "0644"
+
+- name: Comment stock HostKey lines so only hardening drop-in applies
+  community.openwrt.command:
+    cmd: |
+      set -eu
+      conf=/etc/ssh/sshd_config
+      [ -f "$conf" ] || exit 0
+      if grep -qE '^HostKey[[:space:]]+' "$conf"; then
+        sed -i -E 's/^HostKey[[:space:]]+/#HostKey /' "$conf"
+        echo changed
+      else
+        echo ok
+      fi
+    uses_shell: true
+  register: flint2_sshd_hostkey_comment
+  changed_when: flint2_sshd_hostkey_comment.stdout is search('changed')
+
+- name: Deploy OpenSSH hardening drop-in
+  community.openwrt.template:
+    src: sshd-flint2-hardening.conf.j2
+    dest: "{{ flint2_sshd_config_d }}/{{ flint2_sshd_hardening_conf_name }}"
+    mode: "0600"
+  register: flint2_sshd_hardening_conf
+
+- name: Install SSH public keys for root (OpenSSH)
+  when: flint2_ssh_authorized_keys | length > 0
+  community.openwrt.lineinfile:
+    path: /root/.ssh/authorized_keys
+    line: "{{ item }}"
+    create: true
+    mode: "0600"
+    state: present
+  loop: "{{ flint2_ssh_authorized_keys }}"
+  loop_control:
+    label: "{{ item.split()[0] }} {{ item.split()[1] if item.split() | length > 1 else 'key' }}"
+
+- name: Validate sshd configuration
+  when: not ansible_check_mode
+  community.openwrt.command:
+    cmd: sshd -t
+  changed_when: false
+
+- name: Decide whether Dropbear cutover or OpenSSH reload is needed
+  when: not ansible_check_mode
+  community.openwrt.command:
+    cmd: |
+      set -eu
+      if pidof dropbear >/dev/null 2>&1 || ! pidof sshd >/dev/null 2>&1; then
+        echo cutover
+      else
+        echo reload
+      fi
+    uses_shell: true
+  register: flint2_sshd_apply_mode
+  changed_when: false
+
+- name: Reload OpenSSH after hardening config change
+  when:
+    - not ansible_check_mode
+    - flint2_sshd_apply_mode.stdout is search('reload')
+    - >-
+      (flint2_sshd_hardening_conf is changed)
+      or (flint2_sshd_host_key is changed)
+      or (flint2_sshd_hostkey_comment is changed)
+  community.openwrt.command:
+    cmd: /etc/init.d/sshd reload
+  register: flint2_sshd_reload
+  # SIGHUP re-exec keeps the listener and usually this session; recover if not.
+  ignore_unreachable: true
+
+- name: Wait for OpenSSH after config reload
+  when:
+    - not ansible_check_mode
+    - flint2_sshd_reload is defined
+    - flint2_sshd_reload is unreachable or flint2_sshd_reload is changed
+  community.openwrt.wait_for_connection:
+    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
+    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
+    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"
+
+- name: Cut over from Dropbear to OpenSSH (background)
+  when:
+    - not ansible_check_mode
+    - flint2_sshd_apply_mode.stdout is search('cutover')
+  community.openwrt.nohup:
+    delay: 2
+    command: |
+      set -eu
+      uci set dropbear.main.enable=0
+      uci commit dropbear
+      /etc/init.d/dropbear stop || true
+      /etc/init.d/dropbear disable || true
+      # Orphans survive init stop when an SSH ControlMaster still holds a session.
+      killall dropbear 2>/dev/null || true
+      rm -f /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_rsa_key.pub
+      rm -f /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ecdsa_key.pub
+      /etc/init.d/sshd enable
+      /etc/init.d/sshd restart
+      # sshd.init regenerates rsa/ed25519; drop non-ed25519 keys again and reload.
+      rm -f /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_rsa_key.pub
+      rm -f /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ecdsa_key.pub
+      /etc/init.d/sshd reload || /etc/init.d/sshd restart
+  register: flint2_sshd_cutover
+
+- name: Wait for OpenSSH after Dropbear cutover
+  when:
+    - not ansible_check_mode
+    - flint2_sshd_apply_mode.stdout is search('cutover')
+  community.openwrt.wait_for_connection:
+    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
+    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
+    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"

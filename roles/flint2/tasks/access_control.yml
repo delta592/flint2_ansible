@@ -96,15 +96,26 @@
   when:
     - flint2_access_control_enabled | default(true) | bool
     - flint2_access_control.ssh.enabled is defined
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
   community.openwrt.uci:
     command: set
     key: dropbear.main.enable
     value: "{{ flint2_access_control.ssh.enabled }}"
 
+- name: Disable Dropbear when OpenSSH is the SSH backend
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_ssh_backend | default('openssh') == 'openssh'
+  community.openwrt.uci:
+    command: set
+    key: dropbear.main.enable
+    value: "0"
+
 - name: Configure Dropbear SSH port
   when:
     - flint2_access_control_enabled | default(true) | bool
     - flint2_access_control.ssh.port is defined
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
   community.openwrt.uci:
     command: set
     key: dropbear.main.Port

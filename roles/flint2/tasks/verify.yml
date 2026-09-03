@@ -186,6 +186,85 @@
       - flint2_verify_lan_proto.result == flint2_lan_proto
     fail_msg: "network.lan.proto is '{{ flint2_verify_lan_proto.result }}', expected '{{ flint2_lan_proto }}'"
 
+- name: Find LAN bridge device section for verification
+  when: flint2_bridge_enabled | default(true) | bool
+  community.openwrt.uci:
+    command: find
+    config: network
+    type: device
+    find:
+      name: "{{ flint2_bridge.name }}"
+      type: bridge
+  register: flint2_verify_bridge_section
+  changed_when: false
+  failed_when: false
+
+- name: Assert LAN bridge device section exists
+  when: flint2_bridge_enabled | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_bridge_section.result | default('') | trim | length > 0
+    fail_msg: >-
+      No network device section with name='{{ flint2_bridge.name }}' and
+      type=bridge (E1/E2 target the device section, not network.lan)
+
+- name: Read configured LAN bridge multicast options
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_bridge[item] is defined
+  community.openwrt.uci:
+    command: get
+    key: "network.{{ flint2_verify_bridge_section.result }}.{{ item }}"
+  loop: "{{ flint2_bridge_option_keys | default(['igmp_snooping', 'multicast_querier']) }}"
+  loop_control:
+    label: "{{ flint2_bridge.name }}.{{ item }}"
+  register: flint2_verify_bridge_options
+  changed_when: false
+
+- name: Assert LAN bridge multicast options match desired values
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_verify_bridge_options.results | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - item.result == flint2_bridge[item.item]
+    fail_msg: >-
+      network.{{ flint2_verify_bridge_section.result }}.{{ item.item }} is
+      '{{ item.result }}', expected '{{ flint2_bridge[item.item] }}'
+  loop: "{{ flint2_verify_bridge_options.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ flint2_bridge.name }}.{{ item.item }}"
+
+- name: Read live LAN bridge multicast sysfs knobs
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_verify_live_bridge | default(true) | bool
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      bridge="{{ flint2_bridge.name }}"
+      sysfs="/sys/class/net/${bridge}/bridge"
+      test -d "$sysfs"
+      cat "${sysfs}/multicast_snooping"
+      cat "${sysfs}/multicast_querier"
+    uses_shell: true
+  register: flint2_verify_bridge_sysfs
+  changed_when: false
+
+- name: Assert live LAN bridge multicast knobs match desired values
+  when:
+    - flint2_bridge_enabled | default(true) | bool
+    - flint2_verify_live_bridge | default(true) | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_bridge_sysfs.stdout_lines[0] | trim == flint2_bridge.igmp_snooping | string
+      - flint2_verify_bridge_sysfs.stdout_lines[1] | trim == flint2_bridge.multicast_querier | string
+    fail_msg: >-
+      Live {{ flint2_bridge.name }} multicast_snooping/querier is
+      '{{ flint2_verify_bridge_sysfs.stdout_lines | default([]) | join('/') }}',
+      expected {{ flint2_bridge.igmp_snooping }}/{{ flint2_bridge.multicast_querier }}
+      (UCI is not enough; kernel sysfs must match)
+
 - name: Read GL.iNet admin panel Force HTTPS setting
   when:
     - flint2_access_control_enabled | default(true) | bool
@@ -714,6 +793,7 @@
     - flint2_access_control_enabled | default(true) | bool
     - flint2_verify_glinet_settings | default(true) | bool
     - flint2_access_control.ssh.enabled is defined
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.enable
@@ -725,6 +805,7 @@
     - flint2_access_control_enabled | default(true) | bool
     - flint2_verify_glinet_settings | default(true) | bool
     - flint2_access_control.ssh.enabled is defined
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_enable.result == flint2_access_control.ssh.enabled
@@ -732,11 +813,35 @@
       dropbear.main.enable is '{{ flint2_verify_dropbear_enable.result }}',
       expected '{{ flint2_access_control.ssh.enabled }}'
 
+- name: Read Dropbear enablement under OpenSSH backend
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_ssh_backend | default('openssh') == 'openssh'
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.enable
+  register: flint2_verify_dropbear_disabled
+  changed_when: false
+
+- name: Assert Dropbear is disabled when OpenSSH is the SSH backend
+  when:
+    - flint2_access_control_enabled | default(true) | bool
+    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_ssh_backend | default('openssh') == 'openssh'
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_disabled.result | string == '0'
+    fail_msg: >-
+      dropbear.main.enable is '{{ flint2_verify_dropbear_disabled.result }}',
+      expected '0' when flint2_ssh_backend=openssh
+
 - name: Read Dropbear SSH port
   when:
     - flint2_access_control_enabled | default(true) | bool
     - flint2_verify_glinet_settings | default(true) | bool
     - flint2_access_control.ssh.port is defined
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.Port
@@ -748,6 +853,7 @@
     - flint2_access_control_enabled | default(true) | bool
     - flint2_verify_glinet_settings | default(true) | bool
     - flint2_access_control.ssh.port is defined
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_port.result | int == flint2_access_control.ssh.port | int
@@ -993,86 +1099,8 @@
     label: "{{ item.item.0 }}.{{ item.item.1 }}"
   no_log: "{{ item.item.1 == 'key' }}"
 
-- name: Find LAN bridge device section for verification
-  when: flint2_bridge_enabled | default(true) | bool
-  community.openwrt.uci:
-    command: find
-    config: network
-    type: device
-    find:
-      name: "{{ flint2_bridge.name }}"
-      type: bridge
-  register: flint2_verify_bridge_section
-  changed_when: false
-  failed_when: false
-
-- name: Assert LAN bridge device section exists
-  when: flint2_bridge_enabled | default(true) | bool
-  ansible.builtin.assert:
-    that:
-      - flint2_verify_bridge_section.result | default('') | trim | length > 0
-    fail_msg: >-
-      No network device section with name='{{ flint2_bridge.name }}' and
-      type=bridge (E1/E2 target the device section, not network.lan)
-
-- name: Read configured LAN bridge multicast options
-  when:
-    - flint2_bridge_enabled | default(true) | bool
-    - flint2_bridge[item] is defined
-  community.openwrt.uci:
-    command: get
-    key: "network.{{ flint2_verify_bridge_section.result }}.{{ item }}"
-  loop: "{{ flint2_bridge_option_keys | default(['igmp_snooping', 'multicast_querier']) }}"
-  loop_control:
-    label: "{{ flint2_bridge.name }}.{{ item }}"
-  register: flint2_verify_bridge_options
-  changed_when: false
-
-- name: Assert LAN bridge multicast options match desired values
-  when:
-    - flint2_bridge_enabled | default(true) | bool
-    - flint2_verify_bridge_options.results | default([]) | length > 0
-  ansible.builtin.assert:
-    that:
-      - item.result == flint2_bridge[item.item]
-    fail_msg: >-
-      network.{{ flint2_verify_bridge_section.result }}.{{ item.item }} is
-      '{{ item.result }}', expected '{{ flint2_bridge[item.item] }}'
-  loop: "{{ flint2_verify_bridge_options.results | selectattr('skipped', 'undefined') | list }}"
-  loop_control:
-    label: "{{ flint2_bridge.name }}.{{ item.item }}"
-
-- name: Read live LAN bridge multicast sysfs knobs
-  when:
-    - flint2_bridge_enabled | default(true) | bool
-    - flint2_verify_live_bridge | default(true) | bool
-  community.openwrt.command:
-    cmd: |
-      set -euo pipefail
-      bridge="{{ flint2_bridge.name }}"
-      sysfs="/sys/class/net/${bridge}/bridge"
-      test -d "$sysfs"
-      cat "${sysfs}/multicast_snooping"
-      cat "${sysfs}/multicast_querier"
-    uses_shell: true
-  register: flint2_verify_bridge_sysfs
-  changed_when: false
-
-- name: Assert live LAN bridge multicast knobs match desired values
-  when:
-    - flint2_bridge_enabled | default(true) | bool
-    - flint2_verify_live_bridge | default(true) | bool
-  ansible.builtin.assert:
-    that:
-      - flint2_verify_bridge_sysfs.stdout_lines[0] | trim == flint2_bridge.igmp_snooping | string
-      - flint2_verify_bridge_sysfs.stdout_lines[1] | trim == flint2_bridge.multicast_querier | string
-    fail_msg: >-
-      Live {{ flint2_bridge.name }} multicast_snooping/querier is
-      '{{ flint2_verify_bridge_sysfs.stdout_lines | default([]) | join('/') }}',
-      expected {{ flint2_bridge.igmp_snooping }}/{{ flint2_bridge.multicast_querier }}
-      (UCI is not enough; kernel sysfs must match)
-
 - name: Read Dropbear authentication policy
+  when: flint2_ssh_backend | default('openssh') == 'dropbear'
   community.openwrt.uci:
     command: get
     key: "{{ item }}"
@@ -1083,7 +1111,9 @@
   changed_when: false
 
 - name: Assert Dropbear password authentication is disabled
-  when: flint2_dropbear_password_auth is defined
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_password_auth is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_auth.results[0].result == flint2_dropbear_password_auth
@@ -1092,7 +1122,9 @@
       expected '{{ flint2_dropbear_password_auth }}'
 
 - name: Assert Dropbear root password authentication is disabled
-  when: flint2_dropbear_root_password_auth is defined
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_root_password_auth is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_auth.results[1].result == flint2_dropbear_root_password_auth
@@ -1100,20 +1132,188 @@
       dropbear.main.RootPasswordAuth is '{{ flint2_verify_dropbear_auth.results[1].result }}',
       expected '{{ flint2_dropbear_root_password_auth }}'
 
+- name: Read Dropbear host keyfile list
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_keyfiles is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.keyfile
+  register: flint2_verify_dropbear_keyfiles
+  failed_when: false
+  changed_when: false
+
+- name: Assert Dropbear host keyfile list matches inventory
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_keyfiles is defined
+  ansible.builtin.assert:
+    that:
+      - (flint2_verify_dropbear_keyfiles.result_list | default([]) | list) == (flint2_dropbear_keyfiles | list)
+    fail_msg: >-
+      dropbear.main.keyfile is {{ flint2_verify_dropbear_keyfiles.result_list | default([]) }},
+      expected {{ flint2_dropbear_keyfiles }}
+
+- name: Read Dropbear MaxAuthTries
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_max_auth_tries is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.MaxAuthTries
+  register: flint2_verify_dropbear_max_auth_tries
+  changed_when: false
+
+- name: Assert Dropbear MaxAuthTries
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_max_auth_tries is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_max_auth_tries.result | string == flint2_dropbear_max_auth_tries | string
+    fail_msg: >-
+      dropbear.main.MaxAuthTries is '{{ flint2_verify_dropbear_max_auth_tries.result }}',
+      expected '{{ flint2_dropbear_max_auth_tries }}'
+
+- name: Read Dropbear IdleTimeout
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_idle_timeout is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.IdleTimeout
+  register: flint2_verify_dropbear_idle_timeout
+  changed_when: false
+
+- name: Assert Dropbear IdleTimeout
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_idle_timeout is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_idle_timeout.result | string == flint2_dropbear_idle_timeout | string
+    fail_msg: >-
+      dropbear.main.IdleTimeout is '{{ flint2_verify_dropbear_idle_timeout.result }}',
+      expected '{{ flint2_dropbear_idle_timeout }}'
+
+- name: Read Dropbear mdns setting
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_mdns is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.mdns
+  register: flint2_verify_dropbear_mdns
+  changed_when: false
+
+- name: Assert Dropbear mdns setting
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_mdns is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_mdns.result | string == flint2_dropbear_mdns | string
+    fail_msg: >-
+      dropbear.main.mdns is '{{ flint2_verify_dropbear_mdns.result }}',
+      expected '{{ flint2_dropbear_mdns }}'
+
+- name: Read Dropbear Interface binding
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_interface is defined
+  community.openwrt.uci:
+    command: get
+    key: dropbear.main.Interface
+  register: flint2_verify_dropbear_interface
+  changed_when: false
+
+- name: Assert Dropbear Interface binding
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_dropbear_interface is defined
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_dropbear_interface.result == flint2_dropbear_interface
+    fail_msg: >-
+      dropbear.main.Interface is '{{ flint2_verify_dropbear_interface.result }}',
+      expected '{{ flint2_dropbear_interface }}'
+
 - name: Check Dropbear authorized_keys file
-  when: flint2_ssh_require_authorized_keys | bool
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_require_authorized_keys | bool
   community.openwrt.stat:
     path: /etc/dropbear/authorized_keys
   register: flint2_verify_authorized_keys_file
   changed_when: false
 
 - name: Assert Dropbear authorized_keys exists for key-only SSH
-  when: flint2_ssh_require_authorized_keys | bool
+  when:
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_require_authorized_keys | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_authorized_keys_file.stat.exists
       - flint2_verify_authorized_keys_file.stat.size | int > 0
     fail_msg: /etc/dropbear/authorized_keys is missing or empty; key-only SSH requires at least one key
+
+- name: Read OpenSSH hardening drop-in
+  when: flint2_ssh_backend | default('openssh') == 'openssh'
+  community.openwrt.command:
+    cmd: cat {{ (flint2_sshd_config_d ~ '/' ~ flint2_sshd_hardening_conf_name) | quote }}
+    uses_shell: true
+  register: flint2_verify_sshd_hardening
+  changed_when: false
+
+- name: Assert OpenSSH algorithm hardening directives
+  when: flint2_ssh_backend | default('openssh') == 'openssh'
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_sshd_hardening.rc == 0
+      - ("KexAlgorithms " ~ flint2_sshd_kex_algorithms) in flint2_verify_sshd_hardening.stdout
+      - ("HostKeyAlgorithms " ~ flint2_sshd_host_key_algorithms) in flint2_verify_sshd_hardening.stdout
+      - ("Ciphers " ~ flint2_sshd_ciphers) in flint2_verify_sshd_hardening.stdout
+      - ("MACs " ~ flint2_sshd_macs) in flint2_verify_sshd_hardening.stdout
+      - ("PasswordAuthentication " ~ flint2_sshd_password_authentication) in flint2_verify_sshd_hardening.stdout
+    fail_msg: >-
+      OpenSSH hardening drop-in missing expected algorithm directives:
+      {{ flint2_verify_sshd_hardening.stdout | default('') }}
+
+- name: Check OpenSSH authorized_keys file
+  when:
+    - flint2_ssh_backend | default('openssh') == 'openssh'
+    - flint2_ssh_require_authorized_keys | bool
+  community.openwrt.stat:
+    path: /root/.ssh/authorized_keys
+  register: flint2_verify_openssh_authorized_keys
+  changed_when: false
+
+- name: Assert OpenSSH authorized_keys exists for key-only SSH
+  when:
+    - flint2_ssh_backend | default('openssh') == 'openssh'
+    - flint2_ssh_require_authorized_keys | bool
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_openssh_authorized_keys.stat.exists
+      - flint2_verify_openssh_authorized_keys.stat.size | int > 0
+    fail_msg: /root/.ssh/authorized_keys is missing or empty; key-only SSH requires at least one key
+
+- name: Assert OpenSSH is listening and Dropbear is not
+  when: flint2_ssh_backend | default('openssh') == 'openssh'
+  community.openwrt.command:
+    cmd: |
+      set -eu
+      if pidof dropbear >/dev/null 2>&1; then
+        echo "dropbear still running" >&2
+        exit 1
+      fi
+      if ! pidof sshd >/dev/null 2>&1; then
+        echo "sshd not running" >&2
+        exit 1
+      fi
+      echo ok
+    uses_shell: true
+  changed_when: false
 
 - name: Get expected nginx certificate fingerprint
   when:

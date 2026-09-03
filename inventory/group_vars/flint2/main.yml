@@ -38,7 +38,6 @@ flint2_bridge:
   igmp_snooping: "1"
   multicast_querier: "1"
 
-
 flint2_fqdn: wapap1003.federation.lcars
 flint2_management_ip: 192.168.0.247
 flint2_pfsense_gateway: 192.168.0.250
@@ -237,11 +236,27 @@ flint2_usteer:
   # Empty → use flint2_wireless.ssid (ARGUS)
   ssid_list: []
 
+# SSH: OpenSSH replaces Dropbear so Kex/Cipher/MAC lists are enforceable.
+# Algorithms: ssh-audit OpenSSH 10.x hardening (PQ KEX + ETM MACs).
+flint2_ssh_backend: openssh
+flint2_sshd_listen_address: "{{ flint2_management_ip }}"
+flint2_sshd_kex_algorithms: mlkem768x25519-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com
+flint2_sshd_host_key_algorithms: ssh-ed25519
+flint2_sshd_pubkey_accepted_algorithms: ssh-ed25519,sk-ssh-ed25519@openssh.com
+flint2_sshd_ciphers: chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-gcm@openssh.com,aes128-ctr
+flint2_sshd_macs: hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com
+flint2_sshd_per_source_max_startups: ""
 flint2_ssh_authorized_keys:
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519.pub') }}"
   - "{{ lookup('ansible.builtin.file', flint2_env_dir + '/id_ed25519_v002.pub') }}"
 
-# LuCI: System → Administration → Dropbear Instance
+# Kept for Dropbear UCI if backend is switched back; also disabled under OpenSSH.
 flint2_dropbear_password_auth: "off"
 flint2_dropbear_root_password_auth: "off"
 flint2_ssh_require_authorized_keys: true
+flint2_dropbear_keyfiles:
+  - /etc/dropbear/dropbear_ed25519_host_key
+flint2_dropbear_max_auth_tries: "3"
+flint2_dropbear_idle_timeout: "300"
+flint2_dropbear_mdns: "0"
+flint2_dropbear_interface: lan

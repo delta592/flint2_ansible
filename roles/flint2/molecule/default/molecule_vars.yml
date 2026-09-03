@@ -32,6 +32,12 @@ flint2_bridge:
 flint2_dropbear_password_auth: "off"
 flint2_dropbear_root_password_auth: "off"
 flint2_ssh_require_authorized_keys: true
+flint2_ssh_backend: dropbear
+flint2_dropbear_keyfiles:
+  - /etc/dropbear/dropbear_ed25519_host_key
+flint2_dropbear_max_auth_tries: "3"
+flint2_dropbear_idle_timeout: "300"
+flint2_dropbear_mdns: "0"
 flint2_packages_present: []
 flint2_packages_absent: []
 flint2_wireless_device_option_keys:

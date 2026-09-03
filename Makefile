@@ -164,6 +164,8 @@ bootstrap-check:
 ## Remove stale SSH host keys after factory reset or firmware upgrade
 .PHONY: known-hosts-reset
 known-hosts-reset:
+	-ssh -O exit -o ControlPath=$(HOME)/.ssh/control/root@192.168.0.247_22 root@192.168.0.247 2>/dev/null
+	-ssh -O exit -o ControlPath=$(HOME)/.ssh/control/root@wapap1003_22 root@wapap1003 2>/dev/null
 	-ssh-keygen -R wapap1003 2>/dev/null
 	-ssh-keygen -R wapap1003.federation.lcars 2>/dev/null
 	-ssh-keygen -R 192.168.0.247 2>/dev/null
@@ -213,7 +215,6 @@ ntp: install
 network: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags network,always
 
-
 ## Install LuCI Statistics and enable collectd thermal/sensors graphs
 .PHONY: statistics
 statistics: install
@@ -244,10 +245,19 @@ tls: install
 nginx: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags nginx,always
 
-## Configure Dropbear and authorized_keys
+## Configure SSH hardening (OpenSSH algorithms / authorized_keys)
 .PHONY: ssh
 ssh: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags ssh,always
+
+SSH_AUDIT ?= $(HOME)/scripts/ssh-audit
+SSH_AUDIT_HOST ?= 192.168.0.247
+
+## Audit SSH algorithms with ssh-audit (run after make ssh)
+.PHONY: ssh-audit
+ssh-audit:
+	@test -x "$(SSH_AUDIT)" || { echo "Missing executable: $(SSH_AUDIT)"; exit 1; }
+	$(SSH_AUDIT) $(SSH_AUDIT_HOST)
 
 ## Validate applied configuration and TLS endpoints
 .PHONY: verify

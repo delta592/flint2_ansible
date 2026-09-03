@@ -20,7 +20,6 @@ flint2_bridge:
   igmp_snooping: "1"
   multicast_querier: "1"
 
-
 flint2_wireless_device_option_keys:
   - band
   - htmode
@@ -91,9 +90,50 @@ flint2_tls_verify_host: "{{ flint2_fqdn | default(ansible_host) }}"
 
 flint2_ssh_authorized_keys: []
 
+# openssh: required to set KexAlgorithms/Ciphers/MACs (Dropbear is compile-time only).
+# dropbear: Molecule / fallback; cannot clear NIST ECDH ssh-audit FAILs.
+flint2_ssh_backend: openssh
+flint2_openssh_packages:
+  - openssh-server
+  - openssh-keygen
+  - openssh-sftp-server
+  - dropbearconvert
+flint2_sshd_config_d: /etc/ssh/sshd_config.d
+flint2_sshd_hardening_conf_name: 99-flint2-hardening.conf
+# ssh-audit OpenSSH 10.x suite (PQ KEX; ETM MACs; prefer GCM/ChaCha).
+flint2_sshd_kex_algorithms: mlkem768x25519-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com
+flint2_sshd_host_key_algorithms: ssh-ed25519
+flint2_sshd_pubkey_accepted_algorithms: ssh-ed25519,sk-ssh-ed25519@openssh.com
+flint2_sshd_ciphers: chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-gcm@openssh.com,aes128-ctr
+flint2_sshd_macs: hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com
+flint2_sshd_password_authentication: "no"
+flint2_sshd_permit_root_login: prohibit-password
+flint2_sshd_max_auth_tries: 3
+flint2_sshd_login_grace_time: 30
+flint2_sshd_client_alive_interval: 300
+flint2_sshd_client_alive_count_max: 2
+# Empty: omit PerSourceMaxStartups (value 1 false-positives ssh-audit DHEat and can lock out Ansible).
+flint2_sshd_per_source_max_startups: ""
+flint2_sshd_max_startups: "10:30:60"
+# Optional ListenAddress (inventory sets management IP).
+# flint2_sshd_listen_address: 192.168.0.247
+# Wait after sshd reload/restart (apply.yml and ssh_openssh.yml cutover).
+flint2_ssh_wait_delay: 8
+flint2_ssh_wait_timeout: 180
+flint2_ssh_wait_sleep: 3
+flint2_ssh_wait_connect_timeout: 5
+
 flint2_dropbear_password_auth: "off"
 flint2_dropbear_root_password_auth: "off"
 flint2_ssh_require_authorized_keys: true
+# Dropbear-only settings (used when flint2_ssh_backend=dropbear).
+flint2_dropbear_keyfiles:
+  - /etc/dropbear/dropbear_ed25519_host_key
+flint2_dropbear_max_auth_tries: "3"
+flint2_dropbear_idle_timeout: "300"
+flint2_dropbear_mdns: "0"
+# Optional: bind Dropbear to a UCI network (e.g. lan). Leave unset to listen on all.
+# flint2_dropbear_interface: lan
 
 # GL.iNet OP25 ships LuCI as optional bundled APKs; uHTTPd alone returns 404 for /cgi-bin/luci/.
 flint2_luci_enabled: true
