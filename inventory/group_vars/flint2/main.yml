@@ -64,6 +64,7 @@ flint2_wireless_device_option_keys:
   - txpower
   - acs_exclude_dfs
   - cell_density
+  - random_bssid
 
 flint2_wireless_iface_option_keys:
   - ssid
@@ -74,6 +75,7 @@ flint2_wireless_iface_option_keys:
   - wpa_group_rekey
   - wds
   - mbo
+  - random_bssid
 
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
@@ -94,6 +96,8 @@ flint2_wireless:
   # Wi-Fi Agile Multiband (MBO): advertise band/BSS preference so capable
   # clients can prefer 5 GHz without waiting for usteer BTM
   mbo: "1"
+  # GL.iNet UI → Wireless → Enable Randomized BSSID (wifi-iface option; UI reads this)
+  random_bssid: "0"
   radios:
     # F-06: 20 MHz on a non-overlapping channel (1/6/11 only); ht_coex for 802.11n coexistence
     # F-19: lower 2.4 GHz txpower so dual-band clients prefer 5 GHz (LOS IoT at ~15 ft still fine)
@@ -112,6 +116,8 @@ flint2_wireless:
       require_mode: n
       txpower: "15"
       cell_density: "2"
+      # GL.iNet UI → Wireless → Enable Randomized BSSID (off)
+      random_bssid: "0"
       iface_options:
         macfilter: allow
         maclist:
@@ -128,6 +134,8 @@ flint2_wireless:
       hwmode: 11a
       require_mode: n
       acs_exclude_dfs: "1"
+      # GL.iNet UI → Wireless → Enable Randomized BSSID (off)
+      random_bssid: "0"
 
 # Guest/IoT SSIDs stay disabled; rotate factory goodlife/psk2 to sae-mixed + strong key (F-03).
 flint2_wireless_guest_ifaces:

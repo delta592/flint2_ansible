@@ -30,6 +30,7 @@ It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25**
 | 5 GHz mode | `11n/ac/ax` (`htmode HE80`, `require_mode n`, `ht_coex 1`) |
 | 5 GHz channel / width | Channel **36**, **80 MHz** (UNII-1; no DFS/CAC) |
 | Security | WPA2-PSK/WPA3-SAE mixed mode (`sae-mixed`); WDS disabled (`wds 0`) |
+| Randomized BSSID | Disabled (`random_bssid=0` on radios and main ifaces) |
 | NTP upstream | `pool.ntp.org` via `chronyd` |
 | Thermal monitoring | LuCI Statistics (`collectd-mod-thermal` / `collectd-mod-sensors`) |
 | LuCI time format | 24-Hour Clock (`system.@system[0].clock_hourcycle=h23`) |
@@ -416,6 +417,21 @@ WPA2-PSK/WPA3-SAE mixed mode
 This permits newer clients to use WPA3-SAE while retaining WPA2 compatibility. Main ARGUS interfaces also set `wds: 0` so 4-address WDS bridging is off.
 
 Disabled guest/IoT SSID templates (`guest2g`, `guest5g`, `iot2g`, `iot5g`) use `sae-mixed` and a strong key from `.secrets/guest_passphrases.env` so a UI toggle no longer exposes the factory `goodlife` / `psk2` defaults.
+
+### Randomized BSSID
+
+GL.iNet UI **Wireless → Enable Randomized BSSID** is disabled on both main ARGUS interfaces so the AP MAC (BSSID) stays stable across reboots (useful for pfSense static mappings, client allowlists, and troubleshooting).
+
+On OP25 firmware the option exists on **both** `wifi-device` and `wifi-iface`. The GL.iNet UI reads the **iface** value. When disabling randomization, Ansible also restores each iface `macaddr` from `factory_macaddr` so the live BSSID matches the factory address (not a previously randomized MAC).
+
+```text
+wireless.radio0.random_bssid=0
+wireless.radio1.random_bssid=0
+wireless.default_radio0.random_bssid=0
+wireless.default_radio1.random_bssid=0
+```
+
+Ansible applies the iface option via `flint2_wireless.random_bssid` and the device option via each entry under `flint2_wireless.radios` in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml).
 
 ### 802.11k / 802.11v BSS Transition
 

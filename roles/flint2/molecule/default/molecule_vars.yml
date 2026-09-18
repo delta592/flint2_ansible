@@ -51,6 +51,7 @@ flint2_wireless_device_option_keys:
   - txpower
   - acs_exclude_dfs
   - cell_density
+  - random_bssid
 flint2_wireless_iface_option_keys:
   - ssid
   - encryption
@@ -60,6 +61,7 @@ flint2_wireless_iface_option_keys:
   - wpa_group_rekey
   - wds
   - mbo
+  - random_bssid
 flint2_wireless:
   ssid: MOLECULE
   encryption: sae-mixed
@@ -69,6 +71,7 @@ flint2_wireless:
   wpa_group_rekey: "86400"
   wds: "0"
   mbo: "1"
+  random_bssid: "0"
   radios:
     # F-06 / F-19 / B2 / B8: HE20 ch 6, cell_density 2, reduced txpower
     # B6 / B9: ecobee allowlist + require PMF on 2.4 GHz
@@ -83,6 +86,7 @@ flint2_wireless:
       require_mode: n
       txpower: "15"
       cell_density: "2"
+      random_bssid: "0"
       iface_options:
         macfilter: allow
         maclist:
@@ -98,6 +102,7 @@ flint2_wireless:
       hwmode: 11a
       require_mode: n
       acs_exclude_dfs: "1"
+      random_bssid: "0"
 flint2_wireless_guest_ifaces:
   - guest2g
   - guest5g

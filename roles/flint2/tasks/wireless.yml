@@ -52,3 +52,32 @@
   loop_control:
     label: "{{ item.0 }}.{{ item.1 }}"
   no_log: "{{ item.1 == 'key' }}"
+
+- name: Read factory MAC address for main AP interfaces
+  when:
+    - flint2_wireless.radios | default([]) | length > 0
+    - flint2_wireless.random_bssid | default('') | string == '0'
+    - item.iface is defined
+  community.openwrt.uci:
+    command: get
+    key: "wireless.{{ item.iface }}.factory_macaddr"
+  loop: "{{ flint2_wireless.radios }}"
+  loop_control:
+    label: "{{ item.iface }}"
+  register: flint2_wireless_factory_macaddrs
+  failed_when: false
+
+- name: Restore factory BSSID MAC when randomized BSSID is disabled
+  when:
+    - flint2_wireless.radios | default([]) | length > 0
+    - flint2_wireless.random_bssid | default('') | string == '0'
+    - item.item.iface is defined
+    - item.result is defined
+    - item.result | length > 0
+  community.openwrt.uci:
+    command: set
+    key: "wireless.{{ item.item.iface }}.macaddr"
+    value: "{{ item.result }}"
+  loop: "{{ flint2_wireless_factory_macaddrs.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.iface }}.macaddr={{ item.result }}"
