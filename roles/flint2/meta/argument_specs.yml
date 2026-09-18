@@ -107,6 +107,7 @@ argument_specs:
           - txpower
           - acs_exclude_dfs
           - cell_density
+          - random_bssid
         description: Radio device option keys copied from each flint2_wireless.radios entry.
       flint2_wireless_iface_option_keys:
         type: list
@@ -120,10 +121,11 @@ argument_specs:
           - wpa_group_rekey
           - wds
           - mbo
+          - random_bssid
         description: >-
           Shared wifi-iface option keys copied from flint2_wireless onto each
           main AP interface (ssid, encryption, key, ieee80211k, bss_transition,
-          wpa_group_rekey, wds, mbo).
+          wpa_group_rekey, wds, mbo, random_bssid).
       flint2_wireless:
         type: dict
         description: Wireless SSID, encryption, key, roaming aids, and per-radio device settings.
@@ -180,6 +182,16 @@ argument_specs:
             description: >-
               Enable Wi-Fi Agile Multiband (MBO) on main AP interfaces so
               capable clients can prefer the AP's advertised band/BSS.
+          random_bssid:
+            type: str
+            default: "0"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              GL.iNet Enable Randomized BSSID on main AP interfaces (UCI
+              wireless.<iface>.random_bssid). The GL.iNet UI reads this
+              wifi-iface option; also set on wifi-device via radios[].random_bssid.
           radios:
             type: list
             elements: dict
@@ -250,6 +262,14 @@ argument_specs:
                   OpenWrt wifi-device cell_density. Higher values raise
                   basic_rates (for example "2" → 12/24 Mbit/s) to cut beacon
                   and multicast airtime.
+              random_bssid:
+                type: str
+                choices:
+                  - "0"
+                  - "1"
+                description: >-
+                  GL.iNet Enable Randomized BSSID (UCI wireless.<device>.random_bssid).
+                  Set "0" to keep a stable BSSID; "1" randomizes on reboot.
               iface_options:
                 type: dict
                 description: >-

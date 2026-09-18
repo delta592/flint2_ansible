@@ -31,6 +31,7 @@ flint2_wireless_device_option_keys:
   - txpower
   - acs_exclude_dfs
   - cell_density
+  - random_bssid
 
 flint2_wireless_iface_option_keys:
   - ssid
@@ -41,6 +42,7 @@ flint2_wireless_iface_option_keys:
   - wpa_group_rekey
   - wds
   - mbo
+  - random_bssid
 
 flint2_wireless:
   ssid: ARGUS
@@ -55,6 +57,8 @@ flint2_wireless:
   wds: "0"
   # Wi-Fi Agile Multiband (MBO) band/BSS preference advertisement
   mbo: "1"
+  # GL.iNet UI → Wireless → Enable Randomized BSSID (wifi-iface; also set on wifi-device)
+  random_bssid: "0"
   radios: []
 
 flint2_wireless_guest_ifaces: []
