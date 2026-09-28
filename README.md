@@ -199,7 +199,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `upgrade` | `upgrade.yml` | GL.iNet Automatic Update Check (`upgrade.general.upgrade_enable`) |
 | `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
 | `network` | `network.yml` | `br-lan` IGMP snooping + multicast querier (E1/E2) |
-| `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
+| `wireless` | `wireless.yml`, `wireless_iface_options.yml` | 2.4/5 GHz wireless configuration; per-radio wifi-iface overrides (`iface_options`) |
 | `usteer` | `usteer.yml` | Active AP-side band steering (usteer + luci-app-usteer) |
 | `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |
 | `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
@@ -208,7 +208,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `nginx` | `nginx.yml` | GL.iNet nginx security headers / HSTS (`gl-conf.d`) |
 | `ssh` | `ssh.yml` | OpenSSH hardening drop-in, keys; disables Dropbear |
 | `always` | `apply.yml` | UCI commit and service reloads (runs with every partial Make target) |
-| `verify` | `verify.yml` | Post-apply validation |
+| `verify` | `verify.yml`, `verify_wireless_iface_options.yml` | Post-apply validation; per-radio wifi-iface override checks |
 
 Partial Make targets (for example `make system`) pass `--tags <area>,always` so UCI changes are committed before verification.
 
