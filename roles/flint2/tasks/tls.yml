@@ -104,6 +104,8 @@
     uses_shell: true
   register: flint2_tls_installed_checksums
   changed_when: false
+  # Read-only; community.openwrt.command is skipped in check mode, which would leave no stdout to compare.
+  check_mode: false
   no_log: true
 
 - name: Compare desired and installed TLS checksums
@@ -130,6 +132,7 @@
     executable: /bin/bash
   register: flint2_tls_install_decision
   changed_when: false
+  check_mode: false
   no_log: true
 
 - name: Record whether TLS certificates need installation
