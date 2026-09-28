@@ -1,6 +1,6 @@
 ---
 # Expects flint2_wireless_radio with iface + iface_options (dict).
-# Scalars use UCI set; maclist is a UCI list (delete + add_list).
+# Scalars use UCI set; maclist is a UCI list (set with a list value replaces it in order).
 
 - name: Configure scalar wifi-iface options on {{ flint2_wireless_radio.iface }}
   when:
@@ -16,26 +16,7 @@
 
 - name: Configure maclist on {{ flint2_wireless_radio.iface }}
   when: flint2_wireless_radio.iface_options.maclist is defined
-  community.openwrt.command:
-    cmd: |
-      set -euo pipefail
-      changed=0
-      iface="{{ flint2_wireless_radio.iface }}"
-      want="{{ flint2_wireless_radio.iface_options.maclist | join(' ') }}"
-
-      got="$(uci -q get "wireless.${iface}.maclist" 2>/dev/null || true)"
-      want_norm="$(printf '%s\n' $want | tr 'A-F' 'a-f' | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
-      got_norm="$(printf '%s\n' $got | tr 'A-F' 'a-f' | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
-      if [ "$got_norm" != "$want_norm" ]; then
-        while uci -q delete "wireless.${iface}.maclist" 2>/dev/null; do :; done
-        for mac in $want; do
-          uci add_list "wireless.${iface}.maclist=$mac"
-        done
-        changed=1
-      fi
-      if [ "$changed" -eq 1 ]; then
-        echo changed
-      fi
-    uses_shell: true
-  register: flint2_wireless_maclist
-  changed_when: flint2_wireless_maclist.stdout is search('changed')
+  community.openwrt.uci:
+    command: set
+    key: "wireless.{{ flint2_wireless_radio.iface }}.maclist"
+    value: "{{ flint2_wireless_radio.iface_options.maclist }}"

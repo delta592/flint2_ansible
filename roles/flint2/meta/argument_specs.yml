@@ -276,8 +276,8 @@ argument_specs:
                   Per-radio wifi-iface options that override or extend the shared
                   flint2_wireless keys for this interface only (for example
                   macfilter/maclist on 2.4 GHz, or ieee80211w). Scalar values are
-                  set with UCI set; maclist must be a list and is applied with
-                  add_list. Per-radio keys take precedence over shared
+                  set with UCI set; maclist must be a list and replaces the UCI
+                  list in order. Per-radio keys take precedence over shared
                   flint2_wireless_iface_option_keys for the same option name.
                 options:
                   macfilter:
