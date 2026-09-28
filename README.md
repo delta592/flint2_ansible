@@ -207,7 +207,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `tls` | `tls.yml` | Certificate deployment |
 | `nginx` | `nginx.yml` | GL.iNet nginx security headers / HSTS (`gl-conf.d`) |
 | `ssh` | `ssh.yml` | OpenSSH hardening drop-in, keys; disables Dropbear |
-| `always` | `apply.yml` | UCI commit and service reloads (runs with every partial Make target) |
+| `always` | `apply.yml` | UCI commit, then reloads only the services whose configuration changed ([handlers](roles/flint2/handlers/main.yml)); runs with every partial Make target |
 | `verify` | `verify.yml`, `verify_wireless_iface_options.yml` | Post-apply validation; per-radio wifi-iface override checks |
 
 Partial Make targets (for example `make system`) pass `--tags <area>,always` so UCI changes are committed before verification.
@@ -231,6 +231,8 @@ Dry-run without applying changes:
 ```bash
 make check
 ```
+
+Services are reloaded through handlers, so a run that changes nothing restarts nothing. In `make check`, the `RUNNING HANDLER` lines show which services a real run would reload; service handlers report `changed` without acting, and command-based ones (Wi-Fi reload, nginx) are skipped.
 
 ## Project layout
 

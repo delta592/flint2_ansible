@@ -736,7 +736,7 @@ make site          # full configuration
 make verify        # post-apply checks (includes TLS when enabled)
 ```
 
-Partial targets automatically run the `always`-tagged UCI commit/apply step (for example `make system`, `make wireless`). Apply reloads OpenSSH with `wait_for_connection` so a brief SSH bounce does not fail the play.
+Partial targets automatically run the `always`-tagged UCI commit/apply step (for example `make system`, `make wireless`). Apply commits UCI and then runs handlers for only the services whose configuration changed, so a run with no changes restarts nothing. A Wi-Fi reload that drops the SSH session, and a Dropbear restart, are followed by `wait_for_connection` so a brief bounce does not fail the play; OpenSSH itself is reloaded by the `ssh` tag when its drop-in changes.
 
 | Make target | Ansible tags | Purpose |
 |---|---|---|
