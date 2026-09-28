@@ -66,48 +66,63 @@
 
 - name: Configure uHTTPd for LuCI
   when: flint2_luci_enabled | default(true) | bool
-  community.openwrt.command:
-    cmd: |
-      set -euo pipefail
-      changed=0
-      ucode_handler='/cgi-bin/luci=/usr/share/ucode/luci/uhttpd.uc'
+  block:
+    - name: Check for LuCI ucode uHTTPd handler
+      community.openwrt.stat:
+        path: /usr/share/ucode/luci/uhttpd.uc
+      register: flint2_luci_ucode_handler
 
-      if [ -f /usr/share/ucode/luci/uhttpd.uc ]; then
-        if ! uci -q get uhttpd.main.ucode_prefix | grep -Fq "$ucode_handler"; then
-          uci add_list uhttpd.main.ucode_prefix="$ucode_handler"
-          changed=1
-        fi
-      fi
+    - name: Check for legacy LuCI Lua uHTTPd handler
+      community.openwrt.stat:
+        path: /usr/lib/lua/luci/sgi/uhttpd.lua
+      register: flint2_luci_lua_handler
 
-      if [ ! -f /usr/lib/lua/luci/sgi/uhttpd.lua ] && uci -q get uhttpd.main.lua_prefix >/dev/null 2>&1; then
-        while uci -q delete uhttpd.main.lua_prefix 2>/dev/null; do :; done
-        changed=1
-      fi
+    - name: Register LuCI ucode handler with uHTTPd
+      when: flint2_luci_ucode_handler.stat.exists
+      community.openwrt.uci:
+        command: add_list
+        key: uhttpd.main.ucode_prefix
+        value: /cgi-bin/luci=/usr/share/ucode/luci/uhttpd.uc
+        unique: true
 
-      for option in inited:1 enabled:1 rfc1918_filter:0; do
-        key="${option%%:*}"
-        want="${option#*:}"
-        got="$(uci -q get uhttpd.main."$key" 2>/dev/null || true)"
-        if [ "$got" != "$want" ]; then
-          uci set uhttpd.main."$key"="$want"
-          changed=1
-        fi
-      done
+    # Drop lua_prefix when the Lua SGI handler it points at is not installed.
+    - name: Remove stale LuCI Lua handler from uHTTPd
+      when: not flint2_luci_lua_handler.stat.exists
+      community.openwrt.uci:
+        command: absent
+        key: uhttpd.main.lua_prefix
 
-      if uci -q get luci >/dev/null 2>&1; then
-        got_lang="$(uci -q get luci.languages.en 2>/dev/null || true)"
-        if [ -z "$got_lang" ]; then
-          uci set luci.languages.en='English'
-          changed=1
-        fi
-      fi
+    - name: Enable uHTTPd and disable its RFC1918 request filter
+      community.openwrt.uci:
+        command: set
+        key: uhttpd.main
+        value:
+          inited: "1"
+          enabled: "1"
+          rfc1918_filter: "0"
 
-      if [ "$changed" -eq 1 ]; then
-        echo changed
-      fi
-    uses_shell: true
-  register: flint2_luci_uhttpd_config
-  changed_when: flint2_luci_uhttpd_config.stdout is search('changed')
+    - name: Check for LuCI UCI config
+      community.openwrt.stat:
+        path: /etc/config/luci
+      register: flint2_luci_config
+
+    - name: Read LuCI English language entry
+      when: flint2_luci_config.stat.exists
+      community.openwrt.uci:
+        command: get
+        key: luci.languages.en
+      register: flint2_luci_language_en
+      changed_when: false
+      failed_when: false
+
+    - name: Register LuCI English language
+      when:
+        - flint2_luci_config.stat.exists
+        - flint2_luci_language_en.result_list | default([]) | join('') | length == 0
+      community.openwrt.uci:
+        command: set
+        key: luci.languages.en
+        value: English
 
 - name: Enable rpcd for LuCI
   when: flint2_luci_enabled | default(true) | bool

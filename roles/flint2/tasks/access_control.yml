@@ -63,34 +63,19 @@
     - flint2_access_control_enabled | default(true) | bool
     - flint2_access_control.luci.http_port is defined
     - flint2_access_control.luci.https_port is defined
-  community.openwrt.command:
-    cmd: |
-      set -euo pipefail
-      http_port="{{ flint2_access_control.luci.http_port }}"
-      https_port="{{ flint2_access_control.luci.https_port }}"
-      want_http="0.0.0.0:${http_port} [::]:${http_port}"
-      want_https="0.0.0.0:${https_port} [::]:${https_port}"
-      got_http="$(uci -q get uhttpd.main.listen_http 2>/dev/null | xargs || true)"
-      got_https="$(uci -q get uhttpd.main.listen_https 2>/dev/null | xargs || true)"
-      changed=0
-      if [ "$got_http" != "$want_http" ]; then
-        while uci -q delete uhttpd.main.listen_http 2>/dev/null; do :; done
-        uci add_list uhttpd.main.listen_http="0.0.0.0:${http_port}"
-        uci add_list uhttpd.main.listen_http="[::]:${http_port}"
-        changed=1
-      fi
-      if [ "$got_https" != "$want_https" ]; then
-        while uci -q delete uhttpd.main.listen_https 2>/dev/null; do :; done
-        uci add_list uhttpd.main.listen_https="0.0.0.0:${https_port}"
-        uci add_list uhttpd.main.listen_https="[::]:${https_port}"
-        changed=1
-      fi
-      if [ "$changed" -eq 1 ]; then
-        echo changed
-      fi
-    uses_shell: true
-  register: flint2_luci_listen_ports
-  changed_when: flint2_luci_listen_ports.stdout is search('changed')
+  community.openwrt.uci:
+    command: set
+    key: "uhttpd.main.{{ item.option }}"
+    value:
+      - "0.0.0.0:{{ item.port }}"
+      - "[::]:{{ item.port }}"
+  loop:
+    - option: listen_http
+      port: "{{ flint2_access_control.luci.http_port }}"
+    - option: listen_https
+      port: "{{ flint2_access_control.luci.https_port }}"
+  loop_control:
+    label: "uhttpd.main.{{ item.option }}={{ item.port }}"
 
 - name: Enable Dropbear SSH service
   when:
