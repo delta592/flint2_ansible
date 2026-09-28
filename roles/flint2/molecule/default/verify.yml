@@ -154,3 +154,23 @@
           - flint2_molecule_verify_luci_language.result == "English"
         fail_msg: "luci.languages.en is '{{ flint2_molecule_verify_luci_language.result }}', expected 'English'"
 
+    # Fixtures have no factory_macaddr, so no macaddr override may be written.
+    - name: Read main AP interface macaddr overrides
+      community.openwrt.uci:
+        command: get
+        key: "wireless.{{ item.iface }}.macaddr"
+      loop: "{{ flint2_wireless.radios }}"
+      loop_control:
+        label: "{{ item.iface }}"
+      register: flint2_molecule_verify_macaddr
+      changed_when: false
+      failed_when: false
+
+    - name: Assert no macaddr is written without a factory MAC address
+      ansible.builtin.assert:
+        that:
+          - item.result_list is not defined
+        fail_msg: "wireless.{{ item.item.iface }}.macaddr is '{{ item.result }}' although factory_macaddr is unset"
+      loop: "{{ flint2_molecule_verify_macaddr.results }}"
+      loop_control:
+        label: "{{ item.item.iface }}"

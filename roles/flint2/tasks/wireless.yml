@@ -72,7 +72,8 @@
     - flint2_wireless.radios | default([]) | length > 0
     - flint2_wireless.random_bssid | default('') | string == '0'
     - item.item.iface is defined
-    - item.result is defined
+    # result carries the uci error text when factory_macaddr is missing; result_list only exists on success.
+    - item.result_list is defined
     - item.result | length > 0
   community.openwrt.uci:
     command: set
