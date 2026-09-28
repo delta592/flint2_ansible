@@ -53,6 +53,7 @@
             command: set
             key: chrony.@pool[0].disabled
             value: "1"
+          notify: flint2 chrony changed
 
         - name: Read chrony DHCP NTP server section
           community.openwrt.uci:
@@ -68,6 +69,7 @@
             command: set
             key: chrony.@dhcp_ntp_server[0].disabled
             value: "1"
+          notify: flint2 chrony changed
 
         - name: Configure managed chrony pool
           community.openwrt.uci:
@@ -79,6 +81,7 @@
               hostname: "{{ flint2_ntp.servers[0] }}"
               iburst: "{{ flint2_ntp.iburst | default('1') }}"
               disabled: "0"
+          notify: flint2 chrony changed
 
     - name: Configure sysntpd upstream servers
       when: flint2_ntp_backend == 'sysntpd'
@@ -88,6 +91,7 @@
             command: set
             key: system.ntp.server
             value: "{{ flint2_ntp.servers }}"
+          notify: flint2 sysntpd changed
 
         - name: Enable sysntpd and set DHCP-provided server usage
           community.openwrt.uci:
@@ -96,6 +100,7 @@
             value:
               enabled: "1"
               use_dhcp: "{{ flint2_ntp.use_dhcp | default('0') }}"
+          notify: flint2 sysntpd changed
 
         - name: Read sysntpd LAN time server setting
           community.openwrt.uci:
@@ -111,3 +116,4 @@
             command: set
             key: system.ntp.enable_server
             value: "{{ flint2_ntp.enable_server | default('0') }}"
+          notify: flint2 sysntpd changed

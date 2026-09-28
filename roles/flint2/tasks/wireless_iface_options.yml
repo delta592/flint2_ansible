@@ -13,6 +13,7 @@
   loop: "{{ flint2_wireless_radio.iface_options | dict2items }}"
   loop_control:
     label: "{{ flint2_wireless_radio.iface }}.{{ item.key }}={{ item.value }}"
+  notify: flint2 wifi changed
 
 - name: Configure maclist on {{ flint2_wireless_radio.iface }}
   when: flint2_wireless_radio.iface_options.maclist is defined
@@ -20,3 +21,4 @@
     command: set
     key: "wireless.{{ flint2_wireless_radio.iface }}.maclist"
     value: "{{ flint2_wireless_radio.iface_options.maclist }}"
+  notify: flint2 wifi changed

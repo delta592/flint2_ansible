@@ -7,6 +7,7 @@
     command: set
     key: oui-httpd.main.redirect_https
     value: "{{ flint2_access_control.admin.redirect_https }}"
+  notify: flint2 nginx changed
 
 - name: Configure GL.iNet admin panel auto-logout timeout
   when:
@@ -16,6 +17,7 @@
     command: set
     key: oui-httpd.main.session_timeout
     value: "{{ flint2_access_control.admin.session_timeout_minutes | int * 60 }}"
+  notify: flint2 nginx changed
 
 - name: Configure GL.iNet admin panel HTTP and HTTPS ports
   when:
@@ -41,6 +43,7 @@
     uses_shell: true
   register: flint2_admin_panel_ports
   changed_when: flint2_admin_panel_ports.stdout is search('changed')
+  notify: flint2 nginx changed
 
 - name: Enable LuCI uHTTPd service
   when: flint2_access_control_enabled | default(true) | bool
@@ -48,6 +51,7 @@
     command: set
     key: uhttpd.main.enabled
     value: "1"
+  notify: flint2 uhttpd changed
 
 - name: Configure LuCI Force HTTPS redirect
   when:
@@ -57,6 +61,7 @@
     command: set
     key: uhttpd.main.redirect_https
     value: "{{ flint2_access_control.luci.redirect_https }}"
+  notify: flint2 uhttpd changed
 
 - name: Configure LuCI HTTP and HTTPS listen ports
   when:
@@ -76,6 +81,7 @@
       port: "{{ flint2_access_control.luci.https_port }}"
   loop_control:
     label: "uhttpd.main.{{ item.option }}={{ item.port }}"
+  notify: flint2 uhttpd changed
 
 - name: Enable Dropbear SSH service
   when:
@@ -86,6 +92,7 @@
     command: set
     key: dropbear.main.enable
     value: "{{ flint2_access_control.ssh.enabled }}"
+  notify: flint2 dropbear changed
 
 - name: Disable Dropbear when OpenSSH is the SSH backend
   when:
@@ -105,3 +112,4 @@
     command: set
     key: dropbear.main.Port
     value: "{{ flint2_access_control.ssh.port }}"
+  notify: flint2 dropbear changed

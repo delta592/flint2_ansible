@@ -8,6 +8,7 @@
     name: "{{ flint2_statistics_packages | join(',') }}"
     state: present
     update_cache: true
+  notify: flint2 statistics changed
 
 - name: Install Flint 2 statistics packages with opkg
   when:
@@ -18,6 +19,7 @@
     name: "{{ flint2_statistics_packages | join(',') }}"
     state: present
     update_cache: true
+  notify: flint2 statistics changed
 
 - name: Configure LuCI Statistics collectd plugins
   when: flint2_statistics_enabled | default(true) | bool
@@ -41,6 +43,7 @@
         name: collectd
         value:
           Interval: "{{ flint2_statistics_interval | default(30) }}"
+      notify: flint2 statistics changed
 
     - name: Enable collectd plugins
       community.openwrt.uci:
@@ -51,6 +54,7 @@
         value:
           enable: "1"
       loop: "{{ flint2_statistics_plugins }}"
+      notify: flint2 statistics changed
 
 - name: Enable collectd and luci_statistics at boot
   when: flint2_statistics_enabled | default(true) | bool
@@ -71,3 +75,4 @@
     uses_shell: true
   register: flint2_statistics_enable
   changed_when: flint2_statistics_enable.stdout is search('changed')
+  notify: flint2 statistics changed

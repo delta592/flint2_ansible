@@ -27,6 +27,7 @@
     uses_shell: true
   register: flint2_luci_bundled_install
   changed_when: flint2_luci_bundled_install.stdout is search('changed')
+  notify: flint2 uhttpd changed
 
 - name: Install bundled GL.iNet LuCI packages with opkg
   when:
@@ -47,6 +48,7 @@
     uses_shell: true
   register: flint2_luci_bundled_install_opkg
   changed_when: flint2_luci_bundled_install_opkg.stdout is search('changed')
+  notify: flint2 uhttpd changed
 
 - name: Install uHTTPd ucode module for LuCI
   when:
@@ -55,6 +57,7 @@
   community.openwrt.apk:
     name: uhttpd-mod-ucode
     state: present
+  notify: flint2 uhttpd changed
 
 - name: Install uHTTPd ucode module for LuCI with opkg
   when:
@@ -63,6 +66,7 @@
   community.openwrt.opkg:
     name: uhttpd-mod-ucode
     state: present
+  notify: flint2 uhttpd changed
 
 - name: Configure uHTTPd for LuCI
   when: flint2_luci_enabled | default(true) | bool
@@ -84,6 +88,7 @@
         key: uhttpd.main.ucode_prefix
         value: /cgi-bin/luci=/usr/share/ucode/luci/uhttpd.uc
         unique: true
+      notify: flint2 uhttpd changed
 
     # Drop lua_prefix when the Lua SGI handler it points at is not installed.
     - name: Remove stale LuCI Lua handler from uHTTPd
@@ -91,6 +96,7 @@
       community.openwrt.uci:
         command: absent
         key: uhttpd.main.lua_prefix
+      notify: flint2 uhttpd changed
 
     - name: Enable uHTTPd and disable its RFC1918 request filter
       community.openwrt.uci:
@@ -100,6 +106,7 @@
           inited: "1"
           enabled: "1"
           rfc1918_filter: "0"
+      notify: flint2 uhttpd changed
 
     - name: Check for LuCI UCI config
       community.openwrt.stat:
@@ -123,6 +130,7 @@
         command: set
         key: luci.languages.en
         value: English
+      notify: flint2 uhttpd changed
 
 - name: Enable rpcd for LuCI
   when: flint2_luci_enabled | default(true) | bool

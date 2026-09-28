@@ -10,6 +10,7 @@
   loop: "{{ flint2_wireless.radios | product(flint2_wireless_device_option_keys) | list }}"
   loop_control:
     label: "{{ item.0.device }}.{{ item.1 }}={{ item.0.get(item.1, '') }}"
+  notify: flint2 wifi changed
 
 # Shared keys apply to every main iface unless that radio's iface_options overrides the key.
 - name: Configure wireless options on main AP interfaces
@@ -27,6 +28,7 @@
   loop_control:
     label: "{{ item.0.iface }}.{{ item.1 }}"
   no_log: "{{ item.1 == 'key' }}"
+  notify: flint2 wifi changed
 
 # Per-radio wifi-iface options (B6 macfilter/maclist; B9 ieee80211w). Prefer overrides over shared keys.
 - name: Apply per-radio wireless interface options
@@ -52,6 +54,7 @@
   loop_control:
     label: "{{ item.0 }}.{{ item.1 }}"
   no_log: "{{ item.1 == 'key' }}"
+  notify: flint2 wifi changed
 
 - name: Read factory MAC address for main AP interfaces
   when:
@@ -82,3 +85,4 @@
   loop: "{{ flint2_wireless_factory_macaddrs.results | default([]) }}"
   loop_control:
     label: "{{ item.item.iface }}.macaddr={{ item.result }}"
+  notify: flint2 wifi changed

@@ -173,9 +173,8 @@
       chown root:root {{ flint2_tls_nginx_cert_path }} {{ flint2_tls_nginx_key_path }}
       chmod 644 {{ flint2_tls_nginx_cert_path }}
       chmod 600 {{ flint2_tls_nginx_key_path }}
-      nginx -t
-      /etc/init.d/nginx restart
     uses_shell: true
+  notify: flint2 nginx changed
 
 - name: Back up and install TLS certificate for LuCI uHTTPd
   when:
@@ -192,6 +191,7 @@
       chmod 644 {{ flint2_tls_uhttpd_cert_path }}
       chmod 600 {{ flint2_tls_uhttpd_key_path }}
     uses_shell: true
+  notify: flint2 uhttpd changed
 
 - name: Ensure LuCI uHTTPd is enabled when TLS is managed
   when: flint2_tls_enabled | bool
@@ -199,6 +199,7 @@
     command: set
     key: uhttpd.main.enabled
     value: "1"
+  notify: flint2 uhttpd changed
 
 - name: Remove temporary TLS files from router
   when:

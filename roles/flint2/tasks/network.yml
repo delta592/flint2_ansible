@@ -36,9 +36,4 @@
   loop: "{{ flint2_bridge_option_keys | default(['igmp_snooping', 'multicast_querier']) }}"
   loop_control:
     label: "{{ flint2_bridge.name }}.{{ item }}={{ flint2_bridge[item] | default('') }}"
-  register: flint2_bridge_options
-
-- name: Record whether LAN bridge multicast UCI changed
-  when: flint2_bridge_enabled | default(true) | bool
-  ansible.builtin.set_fact:
-    flint2_bridge_uci_changed: "{{ flint2_bridge_options.results | default([]) | map(attribute='changed') | select | list | length > 0 }}"
+  notify: flint2 bridge changed

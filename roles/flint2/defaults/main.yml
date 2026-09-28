@@ -121,7 +121,7 @@ flint2_sshd_per_source_max_startups: ""
 flint2_sshd_max_startups: "10:30:60"
 # Optional ListenAddress (inventory sets management IP).
 # flint2_sshd_listen_address: 192.168.0.247
-# Wait after sshd reload/restart (apply.yml and ssh_openssh.yml cutover).
+# Reconnect wait after sshd reload/cutover (ssh_openssh.yml) and after Wi-Fi / Dropbear handler restarts.
 flint2_ssh_wait_delay: 8
 flint2_ssh_wait_timeout: 180
 flint2_ssh_wait_sleep: 3

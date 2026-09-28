@@ -8,7 +8,9 @@
     name: "{{ flint2_usteer_packages | join(',') }}"
     state: present
     update_cache: true
-  register: flint2_usteer_apk
+  notify:
+    - flint2 usteer changed
+    - flint2 luci menu changed
 
 - name: Install Flint 2 usteer packages with opkg
   when:
@@ -19,7 +21,9 @@
     name: "{{ flint2_usteer_packages | join(',') }}"
     state: present
     update_cache: true
-  register: flint2_usteer_opkg
+  notify:
+    - flint2 usteer changed
+    - flint2 luci menu changed
 
 - name: Configure usteer active AP-side steering
   when: flint2_usteer_enabled | default(true) | bool
@@ -43,6 +47,7 @@
         dest: /etc/config/usteer
         force: false
         mode: "0644"
+      notify: flint2 usteer changed
 
     # Configures the first usteer section, creating it when the file has none.
     - name: Configure usteer settings
@@ -62,6 +67,7 @@
           band_steering_min_snr: "{{ flint2_usteer.band_steering_min_snr | default('15') }}"
           band_steering_threshold: "{{ flint2_usteer.band_steering_threshold | default('1') }}"
           ssid_list: "{{ flint2_usteer_ssids }}"
+      notify: flint2 usteer changed
 
 - name: Enable usteer at boot
   when: flint2_usteer_enabled | default(true) | bool
@@ -83,24 +89,4 @@
     uses_shell: true
   register: flint2_usteer_enable
   changed_when: flint2_usteer_enable.stdout is search('changed')
-
-# New luci-app-* packages need a cache flush + rpcd restart before the menu appears.
-- name: Clear LuCI cache and restart rpcd/uhttpd for usteer menu
-  when:
-    - flint2_usteer_enabled | default(true) | bool
-    - >-
-      (flint2_usteer_apk is defined and flint2_usteer_apk is changed)
-      or (flint2_usteer_opkg is defined and flint2_usteer_opkg is changed)
-  community.openwrt.command:
-    cmd: |
-      set -eu
-      rm -f /tmp/luci-indexcache*
-      rm -rf /tmp/luci-modulecache
-      if [ -x /etc/init.d/rpcd ]; then
-        /etc/init.d/rpcd restart
-      fi
-      if [ -x /etc/init.d/uhttpd ]; then
-        /etc/init.d/uhttpd restart
-      fi
-    uses_shell: true
-  changed_when: true
+  notify: flint2 usteer changed

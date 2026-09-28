@@ -5,6 +5,7 @@
     command: set
     key: system.@system[0].hostname
     value: "{{ flint2_hostname }}"
+  notify: flint2 system changed
 
 - name: Set LuCI time format
   when: flint2_clock_hourcycle is defined
@@ -12,3 +13,4 @@
     command: set
     key: system.@system[0].clock_hourcycle
     value: "{{ flint2_clock_hourcycle }}"
+  notify: flint2 system changed

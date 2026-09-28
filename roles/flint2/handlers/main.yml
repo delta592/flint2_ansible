@@ -1,5 +1,141 @@
 ---
-# UCI commit (community.openwrt.uci + uci commit) and service restarts are
-# applied synchronously by tasks/apply.yml before verification.
+# Change-driven service reloads. Tasks notify a "flint2 <area> changed" topic;
+# tasks/apply.yml commits UCI and flushes handlers before verification, so each
+# handler acts on committed configuration. Handlers run in the order listed here
+# (not notification order): Wi-Fi and Dropbear can drop the SSH session, so they
+# run late and are each followed by a reconnect wait.
 # community.openwrt.common handlers (Reload wifi, Restart network, etc.) are
-# registered by community.openwrt.init in playbooks/site.yml.
+# also available via community.openwrt.init in playbooks/site.yml.
+
+# E1/E2 take effect in the kernel, not from uci commit alone. Writing sysfs
+# avoids /etc/init.d/network reload, which would bounce br-lan (management IP).
+# Skip when the sysfs knobs are absent (Molecule containers).
+- name: Apply LAN bridge multicast settings to the running kernel
+  listen: flint2 bridge changed
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      bridge="{{ flint2_bridge.name }}"
+      snooping="{{ flint2_bridge.igmp_snooping }}"
+      querier="{{ flint2_bridge.multicast_querier }}"
+      sysfs="/sys/class/net/${bridge}/bridge"
+      if [ ! -d "$sysfs" ]; then
+        echo "skipping live bridge apply; ${sysfs} not present"
+        exit 0
+      fi
+      printf '%s\n' "$snooping" > "${sysfs}/multicast_snooping"
+      printf '%s\n' "$querier" > "${sysfs}/multicast_querier"
+    uses_shell: true
+  register: flint2_bridge_live_apply
+  changed_when: flint2_bridge_live_apply.stdout is not search('skipping live bridge apply')
+
+- name: Reload system configuration
+  listen: flint2 system changed
+  community.openwrt.service:
+    name: system
+    state: reloaded
+
+- name: Restart chronyd
+  listen: flint2 chrony changed
+  community.openwrt.service:
+    name: chronyd
+    state: restarted
+
+- name: Restart sysntpd
+  listen: flint2 sysntpd changed
+  community.openwrt.service:
+    name: sysntpd
+    state: restarted
+
+# Validate first: a failing nginx -t stops the play before the restart.
+- name: Validate nginx configuration
+  listen: flint2 nginx changed
+  community.openwrt.command:
+    cmd: nginx -t
+    removes: /etc/init.d/nginx
+  changed_when: false
+
+- name: Restart nginx
+  listen: flint2 nginx changed
+  community.openwrt.command:
+    cmd: /etc/init.d/nginx restart
+    removes: /etc/init.d/nginx
+
+# New luci-app-* packages need a cache flush + rpcd/uHTTPd restart before the menu appears.
+- name: Clear LuCI index and module caches
+  listen: flint2 luci menu changed
+  community.openwrt.command:
+    cmd: rm -f /tmp/luci-indexcache* && rm -rf /tmp/luci-modulecache
+    uses_shell: true
+
+- name: Restart rpcd
+  listen: flint2 luci menu changed
+  community.openwrt.service:
+    name: rpcd
+    state: restarted
+
+- name: Restart uHTTPd
+  listen:
+    - flint2 uhttpd changed
+    - flint2 luci menu changed
+  community.openwrt.service:
+    name: uhttpd
+    state: restarted
+
+- name: Restart LuCI Statistics
+  listen: flint2 statistics changed
+  community.openwrt.service:
+    name: luci_statistics
+    state: restarted
+
+- name: Restart collectd
+  listen: flint2 statistics changed
+  community.openwrt.service:
+    name: collectd
+    state: restarted
+
+- name: Reload wireless
+  listen: flint2 wifi changed
+  community.openwrt.command:
+    cmd: /sbin/wifi reload
+    removes: /sbin/wifi
+  register: flint2_wifi_reload
+  # A controller on this AP's Wi-Fi loses SSH while hostapd restarts; reconnect below.
+  ignore_unreachable: true
+
+- name: Wait for SSH after wireless reload
+  listen: flint2 wifi changed
+  when:
+    - not ansible_check_mode
+    - flint2_wifi_reload is unreachable
+  community.openwrt.wait_for_connection:
+    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
+    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
+    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"
+
+# After the wireless reload, matching the previous restart order (wifi before usteer).
+- name: Restart usteer
+  listen: flint2 usteer changed
+  community.openwrt.service:
+    name: usteer
+    state: restarted
+
+- name: Restart Dropbear
+  listen: flint2 dropbear changed
+  when: flint2_ssh_backend | default('openssh') == 'dropbear'
+  community.openwrt.service:
+    name: dropbear
+    state: restarted
+  ignore_unreachable: true
+
+- name: Wait for SSH after Dropbear restart
+  listen: flint2 dropbear changed
+  when:
+    - not ansible_check_mode
+    - flint2_ssh_backend | default('openssh') == 'dropbear'
+  community.openwrt.wait_for_connection:
+    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
+    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
+    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"

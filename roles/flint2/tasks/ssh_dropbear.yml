@@ -7,6 +7,7 @@
     command: set
     key: dropbear.main.PasswordAuth
     value: "{{ flint2_dropbear_password_auth }}"
+  notify: flint2 dropbear changed
 
 - name: Disable Dropbear root password authentication
   when: flint2_dropbear_root_password_auth is defined
@@ -14,6 +15,7 @@
     command: set
     key: dropbear.main.RootPasswordAuth
     value: "{{ flint2_dropbear_root_password_auth }}"
+  notify: flint2 dropbear changed
 
 - name: Set Dropbear MaxAuthTries
   when: flint2_dropbear_max_auth_tries is defined
@@ -21,6 +23,7 @@
     command: set
     key: dropbear.main.MaxAuthTries
     value: "{{ flint2_dropbear_max_auth_tries }}"
+  notify: flint2 dropbear changed
 
 - name: Set Dropbear IdleTimeout
   when: flint2_dropbear_idle_timeout is defined
@@ -28,6 +31,7 @@
     command: set
     key: dropbear.main.IdleTimeout
     value: "{{ flint2_dropbear_idle_timeout }}"
+  notify: flint2 dropbear changed
 
 - name: Disable Dropbear mDNS advertisement
   when: flint2_dropbear_mdns is defined
@@ -35,6 +39,7 @@
     command: set
     key: dropbear.main.mdns
     value: "{{ flint2_dropbear_mdns }}"
+  notify: flint2 dropbear changed
 
 - name: Bind Dropbear to configured network Interface
   when: flint2_dropbear_interface is defined
@@ -42,6 +47,7 @@
     command: set
     key: dropbear.main.Interface
     value: "{{ flint2_dropbear_interface }}"
+  notify: flint2 dropbear changed
 
 - name: Ensure Dropbear authorized_keys directory exists
   when: flint2_ssh_authorized_keys | length > 0
@@ -67,6 +73,7 @@
     uses_shell: true
   register: flint2_dropbear_ed25519_host_key
   changed_when: flint2_dropbear_ed25519_host_key.stdout is search('generated')
+  notify: flint2 dropbear changed
 
 - name: Read Dropbear host keyfile list
   when: flint2_dropbear_keyfiles is defined
@@ -85,6 +92,7 @@
   community.openwrt.uci:
     command: absent
     key: dropbear.main.keyfile
+  notify: flint2 dropbear changed
 
 - name: Restrict Dropbear to configured host key files
   when:
@@ -96,6 +104,7 @@
     value: "{{ item }}"
     unique: true
   loop: "{{ flint2_dropbear_keyfiles }}"
+  notify: flint2 dropbear changed
 
 - name: Install SSH public keys for root (Dropbear)
   when: flint2_ssh_authorized_keys | length > 0
