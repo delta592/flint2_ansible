@@ -105,3 +105,45 @@
       community.openwrt.uci:
         command: commit
         config: network
+
+    # GL.iNet firmware 4.8.4+ syncs time with chronyd; converge its UCI path, not sysntpd.
+    - name: Install chrony so NTP converges through the chronyd backend
+      community.openwrt.apk:
+        name: chrony
+        state: present
+        update_cache: true
+
+    - name: Ensure GL.iNet oui-httpd UCI config exists in the container rootfs
+      community.openwrt.command:
+        cmd: test -f /etc/config/oui-httpd || touch /etc/config/oui-httpd
+        uses_shell: true
+      changed_when: false
+
+    - name: Seed synthetic GL.iNet oui-httpd main section
+      community.openwrt.uci:
+        command: set
+        key: oui-httpd.main
+        value: oui-httpd
+
+    - name: Commit seeded oui-httpd UCI configuration
+      community.openwrt.uci:
+        command: commit
+        config: oui-httpd
+
+    - name: Ensure GL.iNet nginx conf.d directory exists
+      community.openwrt.file:
+        path: /etc/nginx/conf.d
+        state: directory
+        mode: "0755"
+
+    - name: Seed synthetic GL.iNet admin panel nginx listen directives
+      community.openwrt.copy:
+        dest: /etc/nginx/conf.d/gl.conf
+        content: |
+          server {
+              listen 80;
+              listen [::]:80;
+              listen 443 ssl;
+              listen [::]:443 ssl;
+          }
+        mode: "0644"

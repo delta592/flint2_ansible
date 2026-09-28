@@ -35,6 +35,26 @@
         name: flint2
         tasks_from: upgrade.yml
 
+    - name: Install and configure usteer active AP-side steering
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: usteer.yml
+
+    - name: Ensure LuCI is installed and configured
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: luci.yml
+
+    - name: Configure Flint 2 local access control
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: access_control.yml
+
+    - name: Install and configure LuCI Statistics thermal monitoring
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: statistics.yml
+
     - name: Configure Flint 2 SSH access
       ansible.builtin.import_role:
         name: flint2
