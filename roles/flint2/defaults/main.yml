@@ -10,7 +10,12 @@ flint2_network_mode: router
 flint2_lan_proto: static
 flint2_wan_device: eth1
 
+# Extra packages to install or remove with the detected package manager (apk or opkg).
+flint2_packages_present: []
+flint2_packages_absent: []
+
 # E1/E2: IGMP snooping + multicast querier on the LAN bridge device section
+# (not network.lan). Apply with make network from the wired LAN.
 flint2_bridge_enabled: true
 flint2_bridge_option_keys:
   - igmp_snooping
@@ -121,7 +126,7 @@ flint2_sshd_per_source_max_startups: ""
 flint2_sshd_max_startups: "10:30:60"
 # Optional ListenAddress (inventory sets management IP).
 # flint2_sshd_listen_address: 192.168.0.247
-# Wait after sshd reload/restart (apply.yml and ssh_openssh.yml cutover).
+# Reconnect wait after sshd reload/cutover (ssh_openssh.yml) and after Wi-Fi / Dropbear handler restarts.
 flint2_ssh_wait_delay: 8
 flint2_ssh_wait_timeout: 180
 flint2_ssh_wait_sleep: 3
@@ -142,6 +147,8 @@ flint2_dropbear_mdns: "0"
 # GL.iNet OP25 ships LuCI as optional bundled APKs; uHTTPd alone returns 404 for /cgi-bin/luci/.
 flint2_luci_enabled: true
 
+# GL.iNet UI → System → Access Control; flint2_access_control below matches the
+# live values on wapap1003 (2026-08-02).
 flint2_access_control_enabled: true
 flint2_nginx_gl_conf: /etc/nginx/conf.d/gl.conf
 
@@ -173,6 +180,7 @@ flint2_access_control:
     enabled: "1"
     port: 22
 
+# GL.iNet UI → System → Time Zone; upstream NTP via chronyd (firmware 4.8.4+)
 flint2_ntp_enabled: true
 flint2_ntp:
   servers:
@@ -181,7 +189,9 @@ flint2_ntp:
   iburst: "1"
   enable_server: "0"
 
-# LuCI Statistics (collectd) — thermal graphs at Statistics → Graphs
+# LuCI Statistics (collectd) — thermal graphs at Statistics → Graphs. Thermal zones
+# on MT7986 appear after the first Interval (30s). RRD data is stored in /tmp/rrd
+# and resets on reboot.
 flint2_statistics_enabled: true
 flint2_statistics_packages:
   - luci-app-statistics
@@ -195,7 +205,8 @@ flint2_statistics_plugins:
   - collectd_sensors
 flint2_statistics_interval: 30
 
-# Active AP-side steering (usteer) — requires ieee80211k + bss_transition on wifi-ifaces
+# Active AP-side steering (usteer) — requires ieee80211k + bss_transition on wifi-ifaces.
+# Installs usteer + luci-app-usteer from the device package feeds (apk on OP25).
 flint2_usteer_enabled: true
 flint2_usteer_packages:
   - usteer
@@ -208,9 +219,12 @@ flint2_usteer:
   debug_level: "2"
   ipv6: "0"
   # Refuse lower-band association when the client has been seen on a higher band
+  # (D1: refuse 2.4 GHz assoc when the client has been seen probing 5 GHz)
   assoc_steering: "1"
   # Steer clients to a higher band every N ms (0 disables band steering)
+  # (D3: worst-case 2.4 GHz dwell before reactive steer; was 30000)
   band_steering_interval: "10000"
+  # D2: SNR gate in dB (was -60, which never gated); measured SNRs are 40–52 dB
   band_steering_min_snr: "15"
   band_steering_threshold: "1"
   # SSIDs to steer; defaults to flint2_wireless.ssid when empty

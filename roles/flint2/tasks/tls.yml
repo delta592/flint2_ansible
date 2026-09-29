@@ -1,211 +1,139 @@
 ---
-- name: Define TLS certificate paths on control node
+# Deploy leaf + intermediate (as a full chain) and the private key to the GL.iNet
+# nginx UI and LuCI uHTTPd. community.openwrt.copy rewrites a file only when its
+# checksum differs; each installed file about to be replaced is first copied to
+# <path>.<flint2_tls_backup_suffix>.
+- name: Install TLS certificates on nginx and uHTTPd
   when: flint2_tls_enabled | bool
-  ansible.builtin.set_fact:
+  vars:
     flint2_tls_leaf_cert_path: "{{ flint2_tls_cert_files_dir }}/{{ flint2_tls_leaf_cert }}"
     flint2_tls_intermediate_cert_path: "{{ flint2_tls_cert_files_dir }}/{{ flint2_tls_intermediate_cert }}"
     flint2_tls_private_key_path: "{{ flint2_tls_private_key_dir }}/{{ flint2_tls_private_key }}"
     flint2_tls_fullchain_path: "{{ flint2_tls_cert_files_dir }}/{{ flint2_tls_fullchain_name }}"
-    flint2_tls_remote_fullchain_path: "/tmp/{{ flint2_tls_fullchain_name }}"
-    flint2_tls_remote_private_key_path: "/tmp/{{ flint2_tls_private_key }}"
+    flint2_tls_targets:
+      - src: "{{ flint2_tls_fullchain_path }}"
+        dest: "{{ flint2_tls_nginx_cert_path }}"
+        mode: "0644"
+        service: nginx
+      - src: "{{ flint2_tls_private_key_path }}"
+        dest: "{{ flint2_tls_nginx_key_path }}"
+        mode: "0600"
+        service: nginx
+      - src: "{{ flint2_tls_fullchain_path }}"
+        dest: "{{ flint2_tls_uhttpd_cert_path }}"
+        mode: "0644"
+        service: uhttpd
+      - src: "{{ flint2_tls_private_key_path }}"
+        dest: "{{ flint2_tls_uhttpd_key_path }}"
+        mode: "0600"
+        service: uhttpd
+  block:
+    - name: Verify TLS certificate files exist on control node
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ flint2_tls_leaf_cert_path }}"
+        - "{{ flint2_tls_intermediate_cert_path }}"
+        - "{{ flint2_tls_private_key_path }}"
+      register: flint2_tls_local_files
 
-- name: Verify TLS certificate files exist on control node
-  when: flint2_tls_enabled | bool
-  delegate_to: localhost
-  become: false
-  ansible.builtin.stat:
-    path: "{{ item }}"
-  loop:
-    - "{{ flint2_tls_leaf_cert_path }}"
-    - "{{ flint2_tls_intermediate_cert_path }}"
-    - "{{ flint2_tls_private_key_path }}"
-  register: flint2_tls_local_files
+    - name: Assert TLS certificate files exist on control node
+      ansible.builtin.assert:
+        that: item.stat.exists
+        fail_msg: "Missing TLS file on control node: {{ item.item }}"
+      loop: "{{ flint2_tls_local_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 
-- name: Assert TLS certificate files exist on control node
-  when: flint2_tls_enabled | bool
-  ansible.builtin.assert:
-    that: item.stat.exists
-    fail_msg: "Missing TLS file on control node: {{ item.item }}"
-  loop: "{{ flint2_tls_local_files.results }}"
-  loop_control:
-    label: "{{ item.item }}"
+    # Byte-for-byte leaf + intermediate (rstrip=false keeps trailing newlines).
+    # Runs in check mode too: the router copy below needs the chain as its source.
+    - name: Build TLS full certificate chain on control node
+      delegate_to: localhost
+      become: false
+      ansible.builtin.copy:
+        content: >-
+          {{ lookup('ansible.builtin.file', flint2_tls_leaf_cert_path, rstrip=false) }}{{
+          lookup('ansible.builtin.file', flint2_tls_intermediate_cert_path, rstrip=false) }}
+        dest: "{{ flint2_tls_fullchain_path }}"
+        mode: "0644"
+      check_mode: false
 
-- name: Build TLS full certificate chain on control node
-  when: flint2_tls_enabled | bool
-  delegate_to: localhost
-  become: false
-  ansible.builtin.shell: |
-    set -euo pipefail
-    leaf={{ flint2_tls_leaf_cert_path | quote }}
-    intermediate={{ flint2_tls_intermediate_cert_path | quote }}
-    fullchain={{ flint2_tls_fullchain_path | quote }}
-    tmp="$(mktemp "${TMPDIR:-/tmp}/flint2-fullchain.XXXXXX")"
-    cat "$leaf" "$intermediate" > "$tmp"
-    if [ -f "$fullchain" ] && cmp -s "$tmp" "$fullchain"; then
-      rm -f "$tmp"
-      exit 0
-    fi
-    mv "$tmp" "$fullchain"
-    echo changed
-  args:
-    executable: /bin/bash
-  register: flint2_tls_fullchain_build
-  changed_when: flint2_tls_fullchain_build.stdout is search('changed')
-  check_mode: false
+    - name: Verify TLS leaf certificate and private key match
+      delegate_to: localhost
+      become: false
+      ansible.builtin.shell: |
+        set -euo pipefail
+        cert_hash="$(openssl x509 -in {{ flint2_tls_leaf_cert_path | quote }} -pubkey -noout | openssl sha256)"
+        key_hash="$(openssl pkey -in {{ flint2_tls_private_key_path | quote }} -pubout | openssl sha256)"
+        test "$cert_hash" = "$key_hash"
+      args:
+        executable: /bin/bash
+      changed_when: false
+      check_mode: false
 
-- name: Verify TLS leaf certificate and private key match
-  when: flint2_tls_enabled | bool
-  delegate_to: localhost
-  become: false
-  ansible.builtin.shell: |
-    set -euo pipefail
-    cert_hash="$(openssl x509 -in "{{ flint2_tls_leaf_cert_path }}" -pubkey -noout | openssl sha256)"
-    key_hash="$(openssl pkey -in "{{ flint2_tls_private_key_path }}" -pubout | openssl sha256)"
-    test "$cert_hash" = "$key_hash"
-  args:
-    executable: /bin/bash
-  changed_when: false
-  check_mode: false
+    - name: Read desired TLS material checksums on control node
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        checksum_algorithm: sha256
+      loop:
+        - "{{ flint2_tls_fullchain_path }}"
+        - "{{ flint2_tls_private_key_path }}"
+      register: flint2_tls_desired_checksums
+      no_log: true
 
-- name: Compute desired TLS material checksums on control node
-  when: flint2_tls_enabled | bool
-  delegate_to: localhost
-  become: false
-  ansible.builtin.shell: |
-    set -euo pipefail
-    sha() { shasum -a 256 "$1" | awk '{print $1}'; }
-    printf 'fullchain=%s\n' "$(sha "{{ flint2_tls_fullchain_path }}")"
-    printf 'key=%s\n' "$(sha "{{ flint2_tls_private_key_path }}")"
-  args:
-    executable: /bin/bash
-  register: flint2_tls_desired_checksums
-  changed_when: false
-  check_mode: false
-  no_log: true
+    - name: Read installed TLS material checksums on router
+      community.openwrt.stat:
+        path: "{{ item.dest }}"
+        checksum_algorithm: sha256
+      loop: "{{ flint2_tls_targets }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      register: flint2_tls_installed_checksums
+      no_log: true
 
-- name: Read installed TLS material checksums on router
-  when: flint2_tls_enabled | bool
-  community.openwrt.command:
-    cmd: |
-      set -euo pipefail
-      hash_or_missing() {
-        path="$1"
-        label="$2"
-        if [ -f "$path" ]; then
-          printf '%s=%s\n' "$label" "$(sha256sum "$path" | awk '{print $1}')"
-        else
-          printf '%s=missing\n' "$label"
-        fi
-      }
-      hash_or_missing {{ flint2_tls_nginx_cert_path | quote }} nginx_cert
-      hash_or_missing {{ flint2_tls_nginx_key_path | quote }} nginx_key
-      hash_or_missing {{ flint2_tls_uhttpd_cert_path | quote }} uhttpd_cert
-      hash_or_missing {{ flint2_tls_uhttpd_key_path | quote }} uhttpd_key
-    uses_shell: true
-  register: flint2_tls_installed_checksums
-  changed_when: false
-  no_log: true
+    - name: Back up installed TLS material that is about to be replaced
+      when:
+        - item.stat.exists
+        - >-
+          item.stat.checksum !=
+          (flint2_tls_desired_checksums.results | selectattr('item', 'equalto', item.item.src) | first).stat.checksum
+      community.openwrt.command:
+        cmd: cp -p {{ item.item.dest | quote }} {{ (item.item.dest ~ '.' ~ flint2_tls_backup_suffix) | quote }}
+        # The module's non-shell mode (xargs) fails in the Molecule container; the shell path works everywhere.
+        uses_shell: true
+      loop: "{{ flint2_tls_installed_checksums.results }}"
+      loop_control:
+        label: "{{ item.item.dest }}.{{ flint2_tls_backup_suffix }}"
 
-- name: Compare desired and installed TLS checksums
-  when: flint2_tls_enabled | bool
-  delegate_to: localhost
-  become: false
-  ansible.builtin.shell: |
-    set -euo pipefail
-    want_fullchain="$(printf '%s\n' {{ flint2_tls_desired_checksums.stdout | quote }} | sed -n 's/^fullchain=//p' | head -1)"
-    want_key="$(printf '%s\n' {{ flint2_tls_desired_checksums.stdout | quote }} | sed -n 's/^key=//p' | head -1)"
-    have_nginx_cert="$(printf '%s\n' {{ flint2_tls_installed_checksums.stdout | quote }} | sed -n 's/^nginx_cert=//p' | head -1)"
-    have_nginx_key="$(printf '%s\n' {{ flint2_tls_installed_checksums.stdout | quote }} | sed -n 's/^nginx_key=//p' | head -1)"
-    have_uhttpd_cert="$(printf '%s\n' {{ flint2_tls_installed_checksums.stdout | quote }} | sed -n 's/^uhttpd_cert=//p' | head -1)"
-    have_uhttpd_key="$(printf '%s\n' {{ flint2_tls_installed_checksums.stdout | quote }} | sed -n 's/^uhttpd_key=//p' | head -1)"
-    if [ "$want_fullchain" = "$have_nginx_cert" ] \
-      && [ "$want_key" = "$have_nginx_key" ] \
-      && [ "$want_fullchain" = "$have_uhttpd_cert" ] \
-      && [ "$want_key" = "$have_uhttpd_key" ]; then
-      echo up_to_date
-    else
-      echo needs_install
-    fi
-  args:
-    executable: /bin/bash
-  register: flint2_tls_install_decision
-  changed_when: false
-  no_log: true
+    - name: Install TLS certificate chain and key for GL.iNet nginx UI
+      community.openwrt.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      loop: "{{ flint2_tls_targets | selectattr('service', 'equalto', 'nginx') | list }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      no_log: true
+      notify: flint2 nginx changed
 
-- name: Record whether TLS certificates need installation
-  when: flint2_tls_enabled | bool
-  ansible.builtin.set_fact:
-    flint2_tls_needs_install: "{{ flint2_tls_install_decision.stdout is search('needs_install') }}"
+    - name: Install TLS certificate chain and key for LuCI uHTTPd
+      community.openwrt.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      loop: "{{ flint2_tls_targets | selectattr('service', 'equalto', 'uhttpd') | list }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      no_log: true
+      notify: flint2 uhttpd changed
 
-- name: Copy TLS certificate and key to router
-  when:
-    - flint2_tls_enabled | bool
-    - flint2_tls_needs_install | bool
-  community.openwrt.copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: "{{ item.mode }}"
-  loop:
-    - src: "{{ flint2_tls_fullchain_path }}"
-      dest: "{{ flint2_tls_remote_fullchain_path }}"
-      mode: "0644"
-    - src: "{{ flint2_tls_private_key_path }}"
-      dest: "{{ flint2_tls_remote_private_key_path }}"
-      mode: "0600"
-  loop_control:
-    label: "{{ item.dest }}"
-  no_log: true
-
-- name: Back up and install TLS certificate for GL.iNet nginx UI
-  when:
-    - flint2_tls_enabled | bool
-    - flint2_tls_needs_install | bool
-  community.openwrt.command:
-    cmd: |
-      set -e
-      cp -p {{ flint2_tls_nginx_cert_path }} {{ flint2_tls_nginx_cert_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
-      cp -p {{ flint2_tls_nginx_key_path }} {{ flint2_tls_nginx_key_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
-      cp {{ flint2_tls_remote_fullchain_path }} {{ flint2_tls_nginx_cert_path }}
-      cp {{ flint2_tls_remote_private_key_path }} {{ flint2_tls_nginx_key_path }}
-      chown root:root {{ flint2_tls_nginx_cert_path }} {{ flint2_tls_nginx_key_path }}
-      chmod 644 {{ flint2_tls_nginx_cert_path }}
-      chmod 600 {{ flint2_tls_nginx_key_path }}
-      nginx -t
-      /etc/init.d/nginx restart
-    uses_shell: true
-
-- name: Back up and install TLS certificate for LuCI uHTTPd
-  when:
-    - flint2_tls_enabled | bool
-    - flint2_tls_needs_install | bool
-  community.openwrt.command:
-    cmd: |
-      set -e
-      cp -p {{ flint2_tls_uhttpd_cert_path }} {{ flint2_tls_uhttpd_cert_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
-      cp -p {{ flint2_tls_uhttpd_key_path }} {{ flint2_tls_uhttpd_key_path }}.{{ flint2_tls_backup_suffix }} 2>/dev/null || true
-      cp {{ flint2_tls_remote_fullchain_path }} {{ flint2_tls_uhttpd_cert_path }}
-      cp {{ flint2_tls_remote_private_key_path }} {{ flint2_tls_uhttpd_key_path }}
-      chown root:root {{ flint2_tls_uhttpd_cert_path }} {{ flint2_tls_uhttpd_key_path }}
-      chmod 644 {{ flint2_tls_uhttpd_cert_path }}
-      chmod 600 {{ flint2_tls_uhttpd_key_path }}
-    uses_shell: true
-
-- name: Ensure LuCI uHTTPd is enabled when TLS is managed
-  when: flint2_tls_enabled | bool
-  community.openwrt.uci:
-    command: set
-    key: uhttpd.main.enabled
-    value: "1"
-
-- name: Remove temporary TLS files from router
-  when:
-    - flint2_tls_enabled | bool
-    - flint2_tls_needs_install | bool
-  community.openwrt.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - "{{ flint2_tls_remote_fullchain_path }}"
-    - "{{ flint2_tls_remote_private_key_path }}"
-  loop_control:
-    label: "{{ item }}"
+    - name: Ensure LuCI uHTTPd is enabled when TLS is managed
+      community.openwrt.uci:
+        command: set
+        key: uhttpd.main.enabled
+        value: "1"
+      notify: flint2 uhttpd changed

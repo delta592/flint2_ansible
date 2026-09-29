@@ -80,7 +80,7 @@ Common validation targets:
 | `make lint` | ansible-lint and yamllint |
 | `make syntax` | `ansible-playbook --syntax-check` |
 | `make check` | Dry-run site playbook with diffs |
-| `make pytest` | Project unit tests with coverage |
+| `make pytest` | Project and role-variable parity tests (pytest) |
 | `make molecule` | Molecule role integration tests (Docker/Colima) |
 | `make colima-start` | Start Colima for Molecule tests |
 | `make secrets` | Gitleaks secret scan |
@@ -114,7 +114,7 @@ Optional environment variables:
 | `MOLECULE_OPENWRT_REBUILD=true` | Force rebuild of the local 25.12.5 rootfs image |
 | `MOLECULE_OPENWRT_PRUNE_IMAGE=true` | Remove the local 25.12.5 image during `molecule destroy` |
 
-The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), a `br-lan` bridge device section, and a GL.iNet-style `upgrade.general` section, then applies and verifies the `packages`, `system`, `ntp`, `network`, `wireless`, `upgrade`, and `ssh` task files. TLS and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
+The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), a `br-lan` bridge device section, GL.iNet-style `upgrade.general` and `oui-httpd.main` sections, and a stub `/etc/nginx/conf.d/gl.conf`. It also installs `chrony` so NTP converges through the same chronyd backend as GL.iNet firmware. Prepare also generates throwaway self-signed TLS material in the Molecule ephemeral directory. Converge then runs the role through its main entry point, like `playbooks/site.yml`, so `tasks/main.yml`, `argument_specs` validation, UCI apply with handlers, and the role's own verify tasks are all exercised; the `packages`, `system`, `upgrade`, `ntp`, `network`, `wireless`, `usteer`, `tls`, `luci`, `access_control`, `statistics`, and `ssh` areas make real changes. The `usteer`, `luci`, and `statistics` steps install packages from the OpenWrt 25.12.5 feeds, so the container needs outbound network access. The test sequence is create → prepare → converge → idempotence → check (a `--check` dry run on the converged host) → verify → destroy. TLS endpoint checks, nginx hardening, and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
@@ -140,7 +140,7 @@ inventory/group_vars/flint2/
   vault.yml.example
 ```
 
-The main wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). Guest and IoT SSIDs (kept disabled) use `.secrets/guest_passphrases.env` via `flint2_wireless_guest_key_file` with `sae-mixed` encryption so the GL.iNet factory `goodlife` / `psk2` defaults are replaced. Both secret files should contain the passphrase alone on one line. The same inventory enables `ieee80211k` / `bss_transition` and installs **usteer** for active AP-side band steering (`make usteer`).
+The main wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` (a role default, looked up by `flint2_wireless.key` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml)). Guest and IoT SSIDs (kept disabled) use `.secrets/guest_passphrases.env` via `flint2_wireless_guest_key_file` with `sae-mixed` encryption so the GL.iNet factory `goodlife` / `psk2` defaults are replaced. Both secret files should contain the passphrase alone on one line. The inventory enables `ieee80211k` / `bss_transition`, and the role defaults install **usteer** for active AP-side band steering (`make usteer`).
 
 ### Bootstrap SSH (first run after reset)
 
@@ -186,7 +186,7 @@ Bootstrap vars prefer password first, then publickey, so the first connection ca
 | --- | --- | --- |
 | `router` | `flint2` → `openwrt` | `ansible_host: wapap1003` in [`inventory/host_vars/router.yml`](inventory/host_vars/router.yml) |
 
-Adjust host name, FQDN, management IP, wireless SSID, and certificate file names in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml).
+Adjust host name, FQDN, management IP, wireless SSID, and certificate file names in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). That file holds only host-specific values; everything else comes from [`roles/flint2/defaults/main.yml`](roles/flint2/defaults/main.yml), documented in [`meta/argument_specs.yml`](roles/flint2/meta/argument_specs.yml). Override a variable in inventory only when it must differ from its default: `make pytest` fails if group_vars repeat a role default verbatim, or if a default is missing from, or disagrees with, the argument specs.
 
 ### Role tags
 
@@ -199,7 +199,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `upgrade` | `upgrade.yml` | GL.iNet Automatic Update Check (`upgrade.general.upgrade_enable`) |
 | `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
 | `network` | `network.yml` | `br-lan` IGMP snooping + multicast querier (E1/E2) |
-| `wireless` | `wireless.yml` | 2.4/5 GHz wireless configuration |
+| `wireless` | `wireless.yml`, `wireless_iface_options.yml` | 2.4/5 GHz wireless configuration; per-radio wifi-iface overrides (`iface_options`) |
 | `usteer` | `usteer.yml` | Active AP-side band steering (usteer + luci-app-usteer) |
 | `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |
 | `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
@@ -207,8 +207,8 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `tls` | `tls.yml` | Certificate deployment |
 | `nginx` | `nginx.yml` | GL.iNet nginx security headers / HSTS (`gl-conf.d`) |
 | `ssh` | `ssh.yml` | OpenSSH hardening drop-in, keys; disables Dropbear |
-| `always` | `apply.yml` | UCI commit and service reloads (runs with every partial Make target) |
-| `verify` | `verify.yml` | Post-apply validation |
+| `always` | `apply.yml` | UCI commit, then reloads only the services whose configuration changed ([handlers](roles/flint2/handlers/main.yml)); runs with every partial Make target |
+| `verify` | `verify.yml`, `verify_wireless_iface_options.yml` | Post-apply validation; per-radio wifi-iface override checks |
 
 Partial Make targets (for example `make system`) pass `--tags <area>,always` so UCI changes are committed before verification.
 
@@ -232,6 +232,8 @@ Dry-run without applying changes:
 make check
 ```
 
+Services are reloaded through handlers, so a run that changes nothing restarts nothing. In `make check`, the `RUNNING HANDLER` lines show which services a real run would reload; service handlers report `changed` without acting, and command-based ones (Wi-Fi reload, nginx) are skipped.
+
 ## Project layout
 
 ```
@@ -249,16 +251,19 @@ inventory/
   hosts.yml
   group_vars/
     openwrt.yml             # OpenWrt collection defaults, SCP -O (bootstrap/Dropbear safe)
-    flint2/main.yml         # Flint 2 device and service variables
+    flint2/main.yml         # Host-specific overrides of role defaults
   host_vars/router.yml      # ansible_host and OpenSSH client algorithm args
 
 roles/flint2/               # Main configuration role
-  meta/argument_specs.yml   # Role variable validation
+  defaults/main.yml         # Default value for every role variable
+  handlers/main.yml         # Change-driven service reloads
+  meta/argument_specs.yml   # Role variable validation and documentation
   molecule/default/         # Docker-based integration tests
 
 tests/
   molecule/                 # Shared Molecule create/destroy playbooks
-  test_project.py           # pytest project sanity checks
+  test_project.py           # required files, Makefile --tags declared, role templates exist
+  test_role_variables.py    # defaults ↔ argument_specs parity; no inventory duplicates or redundant fallbacks
 
 docs/
   Flint_2_AP_Installation_Guide_2026-08-01.md

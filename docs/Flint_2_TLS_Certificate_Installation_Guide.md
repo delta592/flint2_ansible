@@ -2,7 +2,7 @@
 
 This guide documents how to install a private-CA server certificate on both web interfaces of a GL.iNet Flint 2 (GL-MT6000) running GL.iNet firmware/OpenWrt.
 
-**Ansible automation:** When `.env/` and `.secrets/` contain the certificate files listed below, run `make tls` and `make verify` from the repository root instead of the manual steps in sections 3–8. See the [README](../README.md#secrets-and-certificates) and [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml) for file names and paths.
+**Ansible automation:** When `.env/` and `.secrets/` contain the certificate files listed below, run `make tls` and `make verify` from the repository root instead of the manual steps in sections 3–8. See the [README](../README.md#secrets-and-certificates) and [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml) for file names and paths. The role builds the full chain on the control node, copies it and the key straight to the nginx and uHTTPd paths (a file is rewritten only when its checksum differs), and first backs up each installed file it is about to replace to `<path>.<backup suffix>`; nginx and uHTTPd restart only when their files change.
 
 ## Environment
 

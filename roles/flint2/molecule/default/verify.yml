@@ -10,60 +10,184 @@
         name: flint2
         tasks_from: verify.yml
 
+    # The role check above is gated on flint2_verify_glinet_settings (false here), so
+    # assert that converge flipped the upgrade_enable=1 seeded by prepare.yml.
     - name: Read GL.iNet firmware Automatic Update Check setting
-      when: flint2_firmware_auto_update_check is defined
       community.openwrt.uci:
         command: get
         key: upgrade.general.upgrade_enable
       register: flint2_molecule_verify_firmware_auto_update_check
       changed_when: false
 
-    - name: Assert GL.iNet firmware Automatic Update Check matches desired value
-      when: flint2_firmware_auto_update_check is defined
+    - name: Assert GL.iNet firmware Automatic Update Check was flipped from the seeded value
       ansible.builtin.assert:
         that:
           - flint2_molecule_verify_firmware_auto_update_check.result == flint2_firmware_auto_update_check
         fail_msg: >-
           upgrade.general.upgrade_enable is
           '{{ flint2_molecule_verify_firmware_auto_update_check.result }}',
-          expected '{{ flint2_firmware_auto_update_check }}'
+          expected '{{ flint2_firmware_auto_update_check }}' (prepare.yml seeds '1')
 
-    - name: Read configured wireless encryption on main AP interfaces
+    - name: Read vendor chrony pool and DHCP NTP server disabled state
       community.openwrt.uci:
         command: get
-        key: "wireless.{{ item.iface }}.encryption"
-      loop: "{{ flint2_wireless.radios }}"
-      register: flint2_molecule_verify_wireless_encryption
+        key: "{{ item }}"
+      loop:
+        - chrony.@pool[0].disabled
+        - chrony.@dhcp_ntp_server[0].disabled
+      register: flint2_molecule_verify_chrony_disabled
       changed_when: false
 
-    - name: Assert wireless encryption matches desired value
+    - name: Assert vendor chrony pool and DHCP NTP servers are disabled
       ansible.builtin.assert:
         that:
-          - item.result == flint2_wireless.encryption
+          - item.result == "1"
+        fail_msg: "{{ item.item }} is '{{ item.result }}', expected '1'"
+      loop: "{{ flint2_molecule_verify_chrony_disabled.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # Expected ports are the role defaults for flint2_access_control.luci.
+    - name: Read uHTTPd options managed for LuCI
+      community.openwrt.uci:
+        command: get
+        key: "uhttpd.main.{{ item.option }}"
+      loop:
+        - option: inited
+          expected: ["1"]
+        - option: enabled
+          expected: ["1"]
+        - option: rfc1918_filter
+          expected: ["0"]
+        - option: listen_http
+          expected: ["0.0.0.0:8080", "[::]:8080"]
+        - option: listen_https
+          expected: ["0.0.0.0:8443", "[::]:8443"]
+      loop_control:
+        label: "uhttpd.main.{{ item.option }}"
+      register: flint2_molecule_verify_uhttpd
+      changed_when: false
+
+    - name: Assert uHTTPd options managed for LuCI match desired values
+      ansible.builtin.assert:
+        that:
+          - item.result_list == item.item.expected
         fail_msg: >-
-          encryption on {{ item.item.iface }} is '{{ item.result }}',
-          expected '{{ flint2_wireless.encryption }}'
-      loop: "{{ flint2_molecule_verify_wireless_encryption.results }}"
+          uhttpd.main.{{ item.item.option }} is {{ item.result_list | default([]) }},
+          expected {{ item.item.expected }}
+      loop: "{{ flint2_molecule_verify_uhttpd.results }}"
+      loop_control:
+        label: "uhttpd.main.{{ item.item.option }}"
+
+    - name: Read uHTTPd LuCI handler prefixes
+      community.openwrt.uci:
+        command: get
+        key: "uhttpd.main.{{ item }}"
+      loop:
+        - ucode_prefix
+        - lua_prefix
+      register: flint2_molecule_verify_uhttpd_prefixes
+      changed_when: false
+      failed_when: false
+
+    - name: Assert uHTTPd serves LuCI through ucode only
+      ansible.builtin.assert:
+        that:
+          - >-
+            '/cgi-bin/luci=/usr/share/ucode/luci/uhttpd.uc'
+            in (flint2_molecule_verify_uhttpd_prefixes.results[0].result_list | default([]))
+          - flint2_molecule_verify_uhttpd_prefixes.results[1].result_list is not defined
+        fail_msg: >-
+          ucode_prefix is {{ flint2_molecule_verify_uhttpd_prefixes.results[0].result_list | default([]) }},
+          lua_prefix is {{ flint2_molecule_verify_uhttpd_prefixes.results[1].result_list | default('unset') }}
+
+    - name: Read LuCI English language entry
+      community.openwrt.uci:
+        command: get
+        key: luci.languages.en
+      register: flint2_molecule_verify_luci_language
+      changed_when: false
+
+    - name: Assert LuCI English language is registered
+      ansible.builtin.assert:
+        that:
+          - flint2_molecule_verify_luci_language.result == "English"
+        fail_msg: "luci.languages.en is '{{ flint2_molecule_verify_luci_language.result }}', expected 'English'"
+
+    # Fixtures have no factory_macaddr, so no macaddr override may be written.
+    - name: Read main AP interface macaddr overrides
+      community.openwrt.uci:
+        command: get
+        key: "wireless.{{ item.iface }}.macaddr"
+      loop: "{{ flint2_wireless.radios }}"
+      loop_control:
+        label: "{{ item.iface }}"
+      register: flint2_molecule_verify_macaddr
+      changed_when: false
+      failed_when: false
+
+    - name: Assert no macaddr is written without a factory MAC address
+      ansible.builtin.assert:
+        that:
+          - item.result_list is not defined
+        fail_msg: "wireless.{{ item.item.iface }}.macaddr is '{{ item.result }}' although factory_macaddr is unset"
+      loop: "{{ flint2_molecule_verify_macaddr.results }}"
       loop_control:
         label: "{{ item.item.iface }}"
 
-    - name: Read configured wireless radio device settings
-      community.openwrt.uci:
-        command: get
-        key: "wireless.{{ item.0.device }}.{{ item.1 }}"
-      loop: "{{ flint2_wireless.radios | product(flint2_wireless_device_option_keys) | list }}"
-      when: item.0[item.1] is defined
-      register: flint2_molecule_verify_radio_options
-      changed_when: false
+    - name: Read TLS fixture checksums on the control node
+      delegate_to: localhost
+      ansible.builtin.stat:
+        path: "{{ flint2_tls_cert_files_dir }}/{{ item }}"
+        checksum_algorithm: sha256
+      loop:
+        - fullchain.crt
+        - server.key
+      register: flint2_molecule_verify_tls_local
 
-    - name: Assert wireless radio device settings match desired values
+    - name: Read installed TLS material checksums on the container
+      community.openwrt.stat:
+        path: "{{ item.path }}"
+        checksum_algorithm: sha256
+      loop:
+        - path: /etc/nginx/nginx.cer
+          src: 0
+        - path: /etc/nginx/nginx.key
+          src: 1
+        - path: /etc/uhttpd.crt
+          src: 0
+        - path: /etc/uhttpd.key
+          src: 1
+      loop_control:
+        label: "{{ item.path }}"
+      register: flint2_molecule_verify_tls_remote
+
+    - name: Assert installed TLS material matches the control-node full chain and key
       ansible.builtin.assert:
         that:
-          - item.result == item.item.0[item.item.1]
-        fail_msg: >-
-          wireless.{{ item.item.0.device }}.{{ item.item.1 }} is '{{ item.result }}',
-          expected '{{ item.item.0[item.item.1] }}'
-      loop: "{{ flint2_molecule_verify_radio_options.results | default([]) | selectattr('skipped', 'undefined') | list }}"
-      when: flint2_molecule_verify_radio_options.results | default([]) | length > 0
+          - item.stat.exists
+          - item.stat.checksum == flint2_molecule_verify_tls_local.results[item.item.src].stat.checksum
+          - item.stat.mode == ('0644' if item.item.src == 0 else '0600')
+        fail_msg: "{{ item.item.path }} does not match {{ flint2_molecule_verify_tls_local.results[item.item.src].item }}"
+      loop: "{{ flint2_molecule_verify_tls_remote.results }}"
       loop_control:
-        label: "{{ item.item.0.device }}.{{ item.item.1 }}"
+        label: "{{ item.item.path }}"
+
+    - name: Read TLS fixture leaf and intermediate certificates
+      delegate_to: localhost
+      ansible.builtin.slurp:
+        src: "{{ flint2_tls_cert_files_dir }}/{{ item }}"
+      loop:
+        - server.crt
+        - intermediate.crt
+        - fullchain.crt
+      register: flint2_molecule_verify_tls_pem
+
+    - name: Assert the full chain is the leaf followed by the intermediate, byte for byte
+      ansible.builtin.assert:
+        that:
+          - >-
+            (flint2_molecule_verify_tls_pem.results[0].content | b64decode)
+            ~ (flint2_molecule_verify_tls_pem.results[1].content | b64decode)
+            == (flint2_molecule_verify_tls_pem.results[2].content | b64decode)
+        fail_msg: fullchain.crt is not server.crt + intermediate.crt

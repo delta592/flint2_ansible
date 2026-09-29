@@ -1,6 +1,5 @@
 ---
 - name: Configure GL.iNet firmware Automatic Update Check
-  when: flint2_firmware_auto_update_check is defined
   community.openwrt.uci:
     command: set
     key: upgrade.general.upgrade_enable

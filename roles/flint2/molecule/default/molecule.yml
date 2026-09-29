@@ -16,6 +16,9 @@ scenario:
     - prepare
     - converge
     - idempotence
+    # Dry run on the converged host: every task must tolerate --check (skipped
+    # community.openwrt.command results must not break later tasks).
+    - check
     - verify
     - destroy
 

@@ -276,8 +276,8 @@ argument_specs:
                   Per-radio wifi-iface options that override or extend the shared
                   flint2_wireless keys for this interface only (for example
                   macfilter/maclist on 2.4 GHz, or ieee80211w). Scalar values are
-                  set with UCI set; maclist must be a list and is applied with
-                  add_list. Per-radio keys take precedence over shared
+                  set with UCI set; maclist must be a list and replaces the UCI
+                  list in order. Per-radio keys take precedence over shared
                   flint2_wireless_iface_option_keys for the same option name.
                 options:
                   macfilter:
@@ -379,7 +379,9 @@ argument_specs:
       flint2_tls_backup_suffix:
         type: str
         default: pre-ansible
-        description: Suffix appended to remote certificate backups.
+        description: >-
+          Suffix for the backup (<path>.<suffix>) of each installed certificate or key,
+          taken on the router just before Ansible replaces that file.
       flint2_tls_nginx_cert_path:
         type: path
         default: /etc/nginx/nginx.cer
@@ -489,6 +491,24 @@ argument_specs:
       flint2_sshd_listen_address:
         type: str
         description: Optional sshd ListenAddress (e.g. management IP).
+      flint2_ssh_wait_delay:
+        type: int
+        default: 8
+        description: >-
+          Seconds to wait before polling SSH again after the OpenSSH reload/cutover and
+          after Wi-Fi or Dropbear handler restarts (wait_for_connection delay).
+      flint2_ssh_wait_timeout:
+        type: int
+        default: 180
+        description: Maximum seconds to wait for SSH to come back (wait_for_connection timeout).
+      flint2_ssh_wait_sleep:
+        type: int
+        default: 3
+        description: Seconds between SSH reconnect attempts (wait_for_connection sleep).
+      flint2_ssh_wait_connect_timeout:
+        type: int
+        default: 5
+        description: Per-attempt SSH connect timeout in seconds (wait_for_connection connect_timeout).
       flint2_dropbear_password_auth:
         type: str
         default: "off"
@@ -539,6 +559,18 @@ argument_specs:
         type: bool
         default: true
         description: Validate GL.iNet-specific UCI settings such as glconfig.general.mode.
+      flint2_verify_live_hostname:
+        type: bool
+        default: true
+        description: >-
+          When true, verify that the running kernel hostname matches flint2_hostname.
+          Disable in Molecule containers, which cannot set the kernel hostname.
+      flint2_verify_live_wireless:
+        type: bool
+        default: true
+        description: >-
+          When true, verify with iwinfo that each main AP interface broadcasts
+          flint2_wireless.ssid. Disable where no radios exist (Molecule containers).
       flint2_verify_live_bridge:
         type: bool
         default: true

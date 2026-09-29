@@ -105,3 +105,74 @@
       community.openwrt.uci:
         command: commit
         config: network
+
+    # GL.iNet firmware 4.8.4+ syncs time with chronyd; converge its UCI path, not sysntpd.
+    - name: Install chrony so NTP converges through the chronyd backend
+      community.openwrt.apk:
+        name: chrony
+        state: present
+        update_cache: true
+
+    - name: Ensure GL.iNet oui-httpd UCI config exists in the container rootfs
+      community.openwrt.command:
+        cmd: test -f /etc/config/oui-httpd || touch /etc/config/oui-httpd
+        uses_shell: true
+      changed_when: false
+
+    - name: Seed synthetic GL.iNet oui-httpd main section
+      community.openwrt.uci:
+        command: set
+        key: oui-httpd.main
+        value: oui-httpd
+
+    - name: Commit seeded oui-httpd UCI configuration
+      community.openwrt.uci:
+        command: commit
+        config: oui-httpd
+
+    - name: Ensure GL.iNet nginx conf.d directory exists
+      community.openwrt.file:
+        path: /etc/nginx/conf.d
+        state: directory
+        mode: "0755"
+
+    - name: Seed synthetic GL.iNet admin panel nginx listen directives
+      community.openwrt.copy:
+        dest: /etc/nginx/conf.d/gl.conf
+        content: |
+          server {
+              listen 80;
+              listen [::]:80;
+              listen 443 ssl;
+              listen [::]:443 ssl;
+          }
+        mode: "0644"
+
+    # Throwaway TLS material for tls.yml: a leaf matching its key, plus an
+    # unrelated self-signed "intermediate" (the role concatenates, it does not
+    # validate the chain).
+    - name: Create TLS fixture directory on the control node
+      delegate_to: localhost
+      run_once: true
+      ansible.builtin.file:
+        path: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tls"
+        state: directory
+        mode: "0700"
+
+    - name: Generate TLS fixture certificates on the control node
+      delegate_to: localhost
+      run_once: true
+      ansible.builtin.command:
+        cmd: >-
+          openssl req -x509 -newkey rsa:2048 -nodes -days 30
+          -subj /CN={{ item.cn }}
+          -keyout {{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tls/{{ item.key }}
+          -out {{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tls/{{ item.cert }}
+        creates: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tls/{{ item.cert }}"
+      loop:
+        - cn: molecule-flint2.test
+          cert: server.crt
+          key: server.key
+        - cn: molecule-intermediate.test
+          cert: intermediate.crt
+          key: intermediate.key

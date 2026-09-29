@@ -5,56 +5,41 @@
 # Does not change vendor `user root;` — accepted risk (Lua/ubus admin API).
 
 - name: Ensure nginx gl-conf.d directory exists
-  when: flint2_nginx_hardening_enabled | default(true) | bool
+  when: flint2_nginx_hardening_enabled | bool
   community.openwrt.file:
     path: "{{ flint2_nginx_gl_conf_d }}"
     state: directory
     mode: "0755"
 
 - name: Ensure nginx security Lua directory exists
-  when: flint2_nginx_hardening_enabled | default(true) | bool
+  when: flint2_nginx_hardening_enabled | bool
   community.openwrt.file:
     path: "{{ flint2_nginx_security_lua_path | dirname }}"
     state: directory
     mode: "0755"
 
 - name: Deploy nginx security headers Lua filter
-  when: flint2_nginx_hardening_enabled | default(true) | bool
+  when: flint2_nginx_hardening_enabled | bool
   community.openwrt.template:
     src: nginx-security-headers.lua.j2
     dest: "{{ flint2_nginx_security_lua_path }}"
     mode: "0644"
-  register: flint2_nginx_security_lua
+  notify: flint2 nginx changed
 
 - name: Deploy nginx security headers snippet
-  when: flint2_nginx_hardening_enabled | default(true) | bool
+  when: flint2_nginx_hardening_enabled | bool
   community.openwrt.template:
     src: nginx-security-headers.conf.j2
     dest: "{{ flint2_nginx_gl_conf_d }}/{{ flint2_nginx_security_conf_name }}"
     mode: "0600"
-  register: flint2_nginx_security_conf
+  notify: flint2 nginx changed
 
 - name: Set AEAD-only ssl_ciphers in GL.iNet gl.conf
   when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
+    - flint2_nginx_hardening_enabled | bool
+    - flint2_nginx_manage_ssl_ciphers | bool
   community.openwrt.lineinfile:
     path: "{{ flint2_nginx_gl_conf }}"
     regexp: '^[[:space:]]*ssl_ciphers[[:space:]]+'
     line: '    ssl_ciphers "{{ flint2_nginx_ssl_ciphers | trim }}";'
-  register: flint2_nginx_ssl_ciphers_line
-
-- name: Validate and restart nginx after security hardening change
-  when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - >-
-      (flint2_nginx_security_conf is changed)
-      or (flint2_nginx_security_lua is changed)
-      or (flint2_nginx_ssl_ciphers_line is changed)
-    - not ansible_check_mode
-  community.openwrt.command:
-    cmd: |
-      set -e
-      nginx -t
-      /etc/init.d/nginx restart
-    uses_shell: true
+  notify: flint2 nginx changed

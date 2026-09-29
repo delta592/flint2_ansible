@@ -24,7 +24,7 @@ MaxAuthTries {{ flint2_sshd_max_auth_tries }}
 LoginGraceTime {{ flint2_sshd_login_grace_time }}
 ClientAliveInterval {{ flint2_sshd_client_alive_interval }}
 ClientAliveCountMax {{ flint2_sshd_client_alive_count_max }}
-{% if flint2_sshd_per_source_max_startups is defined and (flint2_sshd_per_source_max_startups | string | length) > 0 %}
+{% if (flint2_sshd_per_source_max_startups | string | length) > 0 %}
 PerSourceMaxStartups {{ flint2_sshd_per_source_max_startups }}
 {% endif %}
 MaxStartups {{ flint2_sshd_max_startups }}

@@ -17,7 +17,6 @@ dev = [
     "molecule==26.8.0",
     "pre-commit==4.6.2",
     "pytest==9.1.1",
-    "pytest-cov==7.1.0",
     "requests==2.34.2",
     "tox==4.61.4",
     "tox-ansible==26.8.0",
@@ -27,16 +26,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers --tb=short"
-
-[tool.coverage.run]
-source = ["plugins"]
-branch = true
-omit = ["tests/*"]
-
-[tool.coverage.report]
-fail_under = 0
-show_missing = true
-skip_empty = true
 
 [tool.tox]
 requires = ["tox>=4.2", "tox-ansible"]
@@ -84,9 +73,9 @@ commands = [
 change_dir = "roles/flint2"
 
 [tool.tox.env.pytest]
-description = "Run pytest unit tests with coverage"
+description = "Run pytest project and role-variable tests"
 commands = [
-    ["uv", "run", "pytest", "--cov", "--cov-report=term-missing"],
+    ["uv", "run", "pytest"],
 ]
 
 [tool.tox.env.secrets]

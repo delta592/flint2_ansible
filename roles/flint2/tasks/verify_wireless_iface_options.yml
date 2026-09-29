@@ -1,0 +1,48 @@
+---
+# Expects flint2_wireless_radio with iface + iface_options (dict).
+# Mirrors wireless_iface_options.yml: scalars via UCI get; maclist compared case-insensitively.
+
+- name: Read scalar wifi-iface options on {{ flint2_wireless_radio.iface }}
+  when:
+    - item.key != 'maclist'
+    - item.value is string or item.value is number
+  community.openwrt.uci:
+    command: get
+    key: "wireless.{{ flint2_wireless_radio.iface }}.{{ item.key }}"
+  loop: "{{ flint2_wireless_radio.iface_options | dict2items }}"
+  loop_control:
+    label: "{{ flint2_wireless_radio.iface }}.{{ item.key }}"
+  register: flint2_verify_per_iface_scalars
+  changed_when: false
+
+- name: Assert scalar wifi-iface options match desired values on {{ flint2_wireless_radio.iface }}
+  ansible.builtin.assert:
+    that:
+      - item.result == item.item.value | string
+    fail_msg: >-
+      wireless.{{ flint2_wireless_radio.iface }}.{{ item.item.key }} is '{{ item.result }}',
+      expected '{{ item.item.value }}'
+  loop: "{{ flint2_verify_per_iface_scalars.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ flint2_wireless_radio.iface }}.{{ item.item.key }}"
+
+- name: Read maclist on {{ flint2_wireless_radio.iface }}
+  when: flint2_wireless_radio.iface_options.maclist is defined
+  community.openwrt.command:
+    cmd: |
+      set -euo pipefail
+      uci -q get "wireless.{{ flint2_wireless_radio.iface }}.maclist" 2>/dev/null || true
+    uses_shell: true
+  register: flint2_verify_per_iface_maclist
+  changed_when: false
+
+- name: Assert maclist matches desired values on {{ flint2_wireless_radio.iface }}
+  when: flint2_wireless_radio.iface_options.maclist is defined
+  ansible.builtin.assert:
+    that:
+      - >-
+        ((flint2_verify_per_iface_maclist.stdout | default('') | trim).split() | map('lower') | list | sort)
+        == (flint2_wireless_radio.iface_options.maclist | map('lower') | list | sort)
+    fail_msg: >-
+      wireless.{{ flint2_wireless_radio.iface }}.maclist is '{{ flint2_verify_per_iface_maclist.stdout | trim }}',
+      expected '{{ flint2_wireless_radio.iface_options.maclist | join(' ') }}'

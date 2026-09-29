@@ -22,14 +22,12 @@
   changed_when: false
 
 - name: Assert system hostname matches desired value
-  when: flint2_hostname is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_hostname.result == flint2_hostname
     fail_msg: "Hostname is '{{ flint2_verify_hostname.result }}', expected '{{ flint2_hostname }}'"
 
 - name: Read configured LuCI time format
-  when: flint2_clock_hourcycle is defined
   community.openwrt.uci:
     command: get
     key: system.@system[0].clock_hourcycle
@@ -37,7 +35,6 @@
   changed_when: false
 
 - name: Assert LuCI time format matches desired value
-  when: flint2_clock_hourcycle is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_clock_hourcycle.result == flint2_clock_hourcycle
@@ -47,8 +44,7 @@
 
 - name: Read live kernel hostname
   when:
-    - flint2_hostname is defined
-    - flint2_verify_live_hostname | default(true) | bool
+    - flint2_verify_live_hostname | bool
   community.openwrt.command:
     cmd: cat /proc/sys/kernel/hostname
     uses_shell: true
@@ -57,8 +53,7 @@
 
 - name: Assert live kernel hostname matches desired value
   when:
-    - flint2_hostname is defined
-    - flint2_verify_live_hostname | default(true) | bool
+    - flint2_verify_live_hostname | bool
   ansible.builtin.assert:
     that:
       - flint2_live_hostname_cmd.stdout | trim == flint2_hostname
@@ -67,7 +62,7 @@
       expected '{{ flint2_hostname }}' (run /etc/init.d/system reload if UCI is correct)
 
 - name: Detect NTP configuration backend
-  when: flint2_ntp_enabled | default(true) | bool
+  when: flint2_ntp_enabled | bool
   community.openwrt.command:
     cmd: |
       if [ -f /etc/config/chrony ] && [ -x /etc/init.d/chronyd ]; then
@@ -83,7 +78,7 @@
 
 - name: Read configured chrony upstream pool
   when:
-    - flint2_ntp_enabled | default(true) | bool
+    - flint2_ntp_enabled | bool
     - flint2_verify_ntp_backend.stdout == 'chrony'
   community.openwrt.uci:
     command: get
@@ -93,7 +88,7 @@
 
 - name: Assert chrony upstream pool matches desired value
   when:
-    - flint2_ntp_enabled | default(true) | bool
+    - flint2_ntp_enabled | bool
     - flint2_verify_ntp_backend.stdout == 'chrony'
   ansible.builtin.assert:
     that:
@@ -104,7 +99,7 @@
 
 - name: Read configured sysntpd upstream servers
   when:
-    - flint2_ntp_enabled | default(true) | bool
+    - flint2_ntp_enabled | bool
     - flint2_verify_ntp_backend.stdout == 'sysntpd'
   community.openwrt.uci:
     command: get
@@ -114,7 +109,7 @@
 
 - name: Assert sysntpd upstream servers match desired values
   when:
-    - flint2_ntp_enabled | default(true) | bool
+    - flint2_ntp_enabled | bool
     - flint2_verify_ntp_backend.stdout == 'sysntpd'
   vars:
     flint2_verify_sysntpd_server_list: >-
@@ -132,8 +127,7 @@
 
 - name: Read GL.iNet firmware Automatic Update Check setting
   when:
-    - flint2_firmware_auto_update_check is defined
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_verify_glinet_settings | bool
   community.openwrt.uci:
     command: get
     key: upgrade.general.upgrade_enable
@@ -142,8 +136,7 @@
 
 - name: Assert GL.iNet firmware Automatic Update Check matches desired value
   when:
-    - flint2_firmware_auto_update_check is defined
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_verify_glinet_settings | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_firmware_auto_update_check.result == flint2_firmware_auto_update_check
@@ -154,8 +147,7 @@
 
 - name: Read GL.iNet network mode
   when:
-    - flint2_verify_glinet_settings | default(true) | bool
-    - flint2_network_mode is defined
+    - flint2_verify_glinet_settings | bool
   community.openwrt.uci:
     command: get
     key: glconfig.general.mode
@@ -164,15 +156,13 @@
 
 - name: Assert GL.iNet network mode matches desired value
   when:
-    - flint2_verify_glinet_settings | default(true) | bool
-    - flint2_network_mode is defined
+    - flint2_verify_glinet_settings | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_network_mode.result == flint2_network_mode
     fail_msg: "Network mode is '{{ flint2_verify_network_mode.result }}', expected '{{ flint2_network_mode }}'"
 
 - name: Read LAN interface protocol
-  when: flint2_lan_proto is defined
   community.openwrt.uci:
     command: get
     key: network.lan.proto
@@ -180,14 +170,13 @@
   changed_when: false
 
 - name: Assert LAN uses expected IP protocol
-  when: flint2_lan_proto is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_lan_proto.result == flint2_lan_proto
     fail_msg: "network.lan.proto is '{{ flint2_verify_lan_proto.result }}', expected '{{ flint2_lan_proto }}'"
 
 - name: Find LAN bridge device section for verification
-  when: flint2_bridge_enabled | default(true) | bool
+  when: flint2_bridge_enabled | bool
   community.openwrt.uci:
     command: find
     config: network
@@ -200,7 +189,7 @@
   failed_when: false
 
 - name: Assert LAN bridge device section exists
-  when: flint2_bridge_enabled | default(true) | bool
+  when: flint2_bridge_enabled | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_bridge_section.result | default('') | trim | length > 0
@@ -210,12 +199,12 @@
 
 - name: Read configured LAN bridge multicast options
   when:
-    - flint2_bridge_enabled | default(true) | bool
+    - flint2_bridge_enabled | bool
     - flint2_bridge[item] is defined
   community.openwrt.uci:
     command: get
     key: "network.{{ flint2_verify_bridge_section.result }}.{{ item }}"
-  loop: "{{ flint2_bridge_option_keys | default(['igmp_snooping', 'multicast_querier']) }}"
+  loop: "{{ flint2_bridge_option_keys }}"
   loop_control:
     label: "{{ flint2_bridge.name }}.{{ item }}"
   register: flint2_verify_bridge_options
@@ -223,7 +212,7 @@
 
 - name: Assert LAN bridge multicast options match desired values
   when:
-    - flint2_bridge_enabled | default(true) | bool
+    - flint2_bridge_enabled | bool
     - flint2_verify_bridge_options.results | default([]) | length > 0
   ansible.builtin.assert:
     that:
@@ -237,8 +226,8 @@
 
 - name: Read live LAN bridge multicast sysfs knobs
   when:
-    - flint2_bridge_enabled | default(true) | bool
-    - flint2_verify_live_bridge | default(true) | bool
+    - flint2_bridge_enabled | bool
+    - flint2_verify_live_bridge | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -253,8 +242,8 @@
 
 - name: Assert live LAN bridge multicast knobs match desired values
   when:
-    - flint2_bridge_enabled | default(true) | bool
-    - flint2_verify_live_bridge | default(true) | bool
+    - flint2_bridge_enabled | bool
+    - flint2_verify_live_bridge | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_bridge_sysfs.stdout_lines[0] | trim == flint2_bridge.igmp_snooping | string
@@ -267,8 +256,8 @@
 
 - name: Read GL.iNet admin panel Force HTTPS setting
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.admin.redirect_https is defined
   community.openwrt.uci:
     command: get
@@ -278,8 +267,8 @@
 
 - name: Assert GL.iNet admin panel Force HTTPS matches desired value
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.admin.redirect_https is defined
   ansible.builtin.assert:
     that:
@@ -290,8 +279,8 @@
 
 - name: Read GL.iNet admin panel auto-logout timeout
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.admin.session_timeout_minutes is defined
   community.openwrt.uci:
     command: get
@@ -301,8 +290,8 @@
 
 - name: Assert GL.iNet admin panel auto-logout timeout matches desired value
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.admin.session_timeout_minutes is defined
   ansible.builtin.assert:
     that:
@@ -313,8 +302,8 @@
 
 - name: Read GL.iNet admin panel nginx listen ports
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.admin.http_port is defined
     - flint2_access_control.admin.https_port is defined
   community.openwrt.command:
@@ -329,8 +318,8 @@
 
 - name: Assert GL.iNet admin panel nginx listen ports match desired values
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.admin.http_port is defined
     - flint2_access_control.admin.https_port is defined
   ansible.builtin.assert:
@@ -343,8 +332,8 @@
 
 - name: Read managed nginx security headers snippet
   when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - flint2_nginx_verify_headers | default(true) | bool
+    - flint2_nginx_hardening_enabled | bool
+    - flint2_nginx_verify_headers | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -365,8 +354,8 @@
 
 - name: Assert managed nginx security headers snippet matches desired values
   when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - flint2_nginx_verify_headers | default(true) | bool
+    - flint2_nginx_hardening_enabled | bool
+    - flint2_nginx_verify_headers | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_nginx_security_conf.rc == 0
@@ -379,8 +368,8 @@
 
 - name: Read ssl_ciphers from GL.iNet gl.conf
   when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
+    - flint2_nginx_hardening_enabled | bool
+    - flint2_nginx_manage_ssl_ciphers | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -392,8 +381,8 @@
 
 - name: Assert ssl_ciphers is AEAD-only (no CBC suites)
   when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
+    - flint2_nginx_hardening_enabled | bool
+    - flint2_nginx_manage_ssl_ciphers | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_nginx_ssl_ciphers.rc == 0
@@ -406,8 +395,8 @@
 
 - name: Read LuCI Force HTTPS redirect setting
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.redirect_https is defined
   community.openwrt.uci:
     command: get
@@ -417,8 +406,8 @@
 
 - name: Assert LuCI Force HTTPS redirect matches desired value
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.redirect_https is defined
   ansible.builtin.assert:
     that:
@@ -429,8 +418,8 @@
 
 - name: Read LuCI HTTP listen addresses
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.http_port is defined
   community.openwrt.uci:
     command: get
@@ -440,8 +429,8 @@
 
 - name: Assert LuCI HTTP listen addresses match desired port
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.http_port is defined
   ansible.builtin.assert:
     that:
@@ -453,8 +442,8 @@
 
 - name: Read LuCI HTTPS listen addresses
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.https_port is defined
   community.openwrt.uci:
     command: get
@@ -464,8 +453,8 @@
 
 - name: Assert LuCI HTTPS listen addresses match desired port
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.https_port is defined
   ansible.builtin.assert:
     that:
@@ -477,8 +466,8 @@
 
 - name: Assert LuCI uHTTPd ucode module is installed
   when:
-    - flint2_luci_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_luci_enabled | bool
+    - flint2_verify_glinet_settings | bool
   community.openwrt.command:
     cmd: test -f /usr/lib/uhttpd_ucode.so
     uses_shell: true
@@ -488,8 +477,8 @@
 
 - name: Assert LuCI uHTTPd handler is installed
   when:
-    - flint2_luci_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_luci_enabled | bool
+    - flint2_verify_glinet_settings | bool
   community.openwrt.command:
     cmd: test -f /usr/share/ucode/luci/uhttpd.uc
     uses_shell: true
@@ -499,8 +488,8 @@
 
 - name: Assert LuCI packages are installed
   when:
-    - flint2_luci_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_luci_enabled | bool
+    - flint2_verify_glinet_settings | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_luci_uhttpd_ucode.rc == 0
@@ -511,8 +500,8 @@
 
 - name: Probe LuCI HTTPS endpoint
   when:
-    - flint2_luci_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_luci_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.https_port is defined
   community.openwrt.command:
     cmd: |
@@ -538,8 +527,8 @@
 
 - name: Assert LuCI HTTPS endpoint responds
   when:
-    - flint2_luci_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_luci_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.luci.https_port is defined
   ansible.builtin.assert:
     that:
@@ -549,7 +538,7 @@
       (expected login page, not uHTTPd 404).
 
 - name: Check LuCI Statistics frontend is installed
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   community.openwrt.command:
     cmd: test -f /usr/share/luci/menu.d/luci-app-statistics.json
     uses_shell: true
@@ -558,7 +547,7 @@
   register: flint2_verify_statistics_menu
 
 - name: Check collectd thermal and sensors plugins are installed
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -571,7 +560,7 @@
   register: flint2_verify_statistics_plugins
 
 - name: Assert LuCI Statistics packages are installed
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_statistics_menu.rc == 0
@@ -581,17 +570,17 @@
       plugins. Run the statistics tag or install luci-app-statistics.
 
 - name: Read configured collectd plugin enablement
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   community.openwrt.uci:
     command: get
     key: "luci_statistics.{{ item }}.enable"
-  loop: "{{ flint2_statistics_plugins | default([]) }}"
+  loop: "{{ flint2_statistics_plugins }}"
   register: flint2_verify_statistics_plugin_enable
   changed_when: false
 
 - name: Assert collectd plugins are enabled
   when:
-    - flint2_statistics_enabled | default(true) | bool
+    - flint2_statistics_enabled | bool
     - flint2_verify_statistics_plugin_enable.results | default([]) | length > 0
   ansible.builtin.assert:
     that:
@@ -603,7 +592,7 @@
     label: "{{ item.item }}"
 
 - name: Read configured collectd interval
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   community.openwrt.uci:
     command: get
     key: luci_statistics.collectd.Interval
@@ -611,7 +600,7 @@
   changed_when: false
 
 - name: Assert collectd interval matches desired value
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_statistics_interval.result | int == flint2_statistics_interval | int
@@ -620,7 +609,7 @@
       expected '{{ flint2_statistics_interval }}'
 
 - name: Check collectd service is running
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -632,7 +621,7 @@
   register: flint2_verify_collectd_running
 
 - name: Assert collectd service is running
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_collectd_running.rc == 0
@@ -640,8 +629,8 @@
 
 - name: Read SoC thermal zone temperature
   when:
-    - flint2_statistics_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_statistics_enabled | bool
+    - flint2_verify_glinet_settings | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -661,8 +650,8 @@
 
 - name: Assert SoC thermal zone is readable
   when:
-    - flint2_statistics_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_statistics_enabled | bool
+    - flint2_verify_glinet_settings | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_thermal_zone.rc == 0
@@ -670,7 +659,7 @@
     fail_msg: No readable /sys/class/thermal/thermal_zone*/temp value found
 
 - name: Check usteer package and init script are installed
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -682,7 +671,7 @@
   register: flint2_verify_usteer_installed
 
 - name: Assert usteer is installed
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_usteer_installed.rc == 0
@@ -692,8 +681,8 @@
 
 - name: Check luci-app-usteer menu is present
   when:
-    - flint2_usteer_enabled | default(true) | bool
-    - "'luci-app-usteer' in (flint2_usteer_packages | default([]))"
+    - flint2_usteer_enabled | bool
+    - "'luci-app-usteer' in (flint2_usteer_packages)"
   community.openwrt.command:
     cmd: test -f /usr/share/luci/menu.d/luci-app-usteer.json
     uses_shell: true
@@ -703,8 +692,8 @@
 
 - name: Assert luci-app-usteer menu file is installed
   when:
-    - flint2_usteer_enabled | default(true) | bool
-    - "'luci-app-usteer' in (flint2_usteer_packages | default([]))"
+    - flint2_usteer_enabled | bool
+    - "'luci-app-usteer' in (flint2_usteer_packages)"
   ansible.builtin.assert:
     that:
       - flint2_verify_usteer_luci_menu.rc == 0
@@ -714,7 +703,7 @@
       and re-run make usteer so LuCI cache is cleared.
 
 - name: Read configured usteer options
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   community.openwrt.uci:
     command: get
     key: "usteer.@usteer[0].{{ item }}"
@@ -730,7 +719,7 @@
 
 - name: Assert usteer options match desired values
   when:
-    - flint2_usteer_enabled | default(true) | bool
+    - flint2_usteer_enabled | bool
     - flint2_verify_usteer_options.results | default([]) | length > 0
   ansible.builtin.assert:
     that:
@@ -743,7 +732,7 @@
     label: "{{ item.item }}"
 
 - name: Read configured usteer SSID list
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -753,7 +742,7 @@
   changed_when: false
 
 - name: Assert usteer SSID list includes the main wireless SSID
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   vars:
     flint2_usteer_expected_ssids: >-
       {{
@@ -770,7 +759,7 @@
       expected '{{ flint2_usteer_expected_ssids }}'
 
 - name: Check usteer service is running
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail
@@ -782,7 +771,7 @@
   register: flint2_verify_usteer_running
 
 - name: Assert usteer service is running
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   ansible.builtin.assert:
     that:
       - flint2_verify_usteer_running.rc == 0
@@ -790,10 +779,10 @@
 
 - name: Read Dropbear SSH enablement
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.ssh.enabled is defined
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.enable
@@ -802,10 +791,10 @@
 
 - name: Assert Dropbear SSH enablement matches desired value
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.ssh.enabled is defined
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_enable.result == flint2_access_control.ssh.enabled
@@ -815,9 +804,9 @@
 
 - name: Read Dropbear enablement under OpenSSH backend
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
-    - flint2_ssh_backend | default('openssh') == 'openssh'
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
+    - flint2_ssh_backend == 'openssh'
   community.openwrt.uci:
     command: get
     key: dropbear.main.enable
@@ -826,9 +815,9 @@
 
 - name: Assert Dropbear is disabled when OpenSSH is the SSH backend
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
-    - flint2_ssh_backend | default('openssh') == 'openssh'
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
+    - flint2_ssh_backend == 'openssh'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_disabled.result | string == '0'
@@ -838,10 +827,10 @@
 
 - name: Read Dropbear SSH port
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.ssh.port is defined
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.Port
@@ -850,10 +839,10 @@
 
 - name: Assert Dropbear SSH port matches desired value
   when:
-    - flint2_access_control_enabled | default(true) | bool
-    - flint2_verify_glinet_settings | default(true) | bool
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
     - flint2_access_control.ssh.port is defined
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_port.result | int == flint2_access_control.ssh.port | int
@@ -894,7 +883,7 @@
     {{
       flint2_wireless.radios | default([])
       | product(
-          flint2_wireless_iface_option_keys | default([])
+          flint2_wireless_iface_option_keys
           | reject('equalto', 'key')
           | reject('equalto', 'ssid')
           | list
@@ -918,78 +907,21 @@
   loop_control:
     label: "{{ item.item.0.iface }}.{{ item.item.1 }}"
 
-- name: Read configured per-radio wireless interface scalar options
+# Per-radio wifi-iface overrides (B6 macfilter/maclist; B9 ieee80211w), mirroring the apply side.
+- name: Verify per-radio wireless interface options
   when:
-    - flint2_verify_iface_scalar_items | length > 0
-  community.openwrt.uci:
-    command: get
-    key: "wireless.{{ item.iface }}.{{ item.key }}"
-  loop: "{{ flint2_verify_iface_scalar_items }}"
-  vars:
-    flint2_verify_iface_scalar_items_json: >-
-      {%- set ns = namespace(items=[]) -%}
-      {%- for radio in flint2_wireless.radios | default([]) -%}
-        {%- if radio.iface is defined and radio.iface_options is defined -%}
-          {%- for key, value in radio.iface_options.items() -%}
-            {%- if key != 'maclist' and (value is string or value is number) -%}
-              {{ ns.items.append({'iface': radio.iface, 'key': key, 'value': value}) or '' }}
-            {%- endif -%}
-          {%- endfor -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ ns.items | to_json }}
-    flint2_verify_iface_scalar_items: "{{ flint2_verify_iface_scalar_items_json | from_json }}"
+    - flint2_wireless_radio.iface is defined
+    - flint2_wireless_radio.iface_options is defined
+  ansible.builtin.include_tasks: verify_wireless_iface_options.yml
+  loop: "{{ flint2_wireless.radios | default([]) }}"
   loop_control:
-    label: "{{ item.iface }}.{{ item.key }}"
-  register: flint2_verify_per_iface_scalars
-  changed_when: false
-
-- name: Assert per-radio wireless interface scalar options match desired values
-  when: flint2_verify_per_iface_scalars.results | default([]) | length > 0
-  ansible.builtin.assert:
-    that:
-      - item.result == item.item.value | string
-    fail_msg: >-
-      wireless.{{ item.item.iface }}.{{ item.item.key }} is '{{ item.result }}',
-      expected '{{ item.item.value }}'
-  loop: "{{ flint2_verify_per_iface_scalars.results | selectattr('skipped', 'undefined') | list }}"
-  loop_control:
-    label: "{{ item.item.iface }}.{{ item.item.key }}"
-
-- name: Read configured per-radio wireless interface maclist
-  when:
-    - item.iface is defined
-    - item.iface_options is defined
-    - item.iface_options.maclist is defined
-  community.openwrt.command:
-    cmd: |
-      set -euo pipefail
-      uci -q get "wireless.{{ item.iface }}.maclist" 2>/dev/null || true
-    uses_shell: true
-  loop: "{{ flint2_wireless.radios | default([]) | selectattr('iface_options', 'defined') | list }}"
-  loop_control:
-    label: "{{ item.iface }}.maclist"
-  register: flint2_verify_per_iface_maclist
-  changed_when: false
-
-- name: Assert per-radio wireless interface maclist matches desired values
-  when: flint2_verify_per_iface_maclist.results | default([]) | length > 0
-  ansible.builtin.assert:
-    that:
-      - >-
-        ((item.stdout | default('') | trim).split() | map('lower') | list | sort)
-        == (item.item.iface_options.maclist | map('lower') | list | sort)
-    fail_msg: >-
-      wireless.{{ item.item.iface }}.maclist is '{{ item.stdout | trim }}',
-      expected '{{ item.item.iface_options.maclist | join(' ') }}'
-  loop: "{{ flint2_verify_per_iface_maclist.results | selectattr('skipped', 'undefined') | list }}"
-  loop_control:
-    label: "{{ item.item.iface }}.maclist"
+    loop_var: flint2_wireless_radio
+    label: "{{ flint2_wireless_radio.iface | default(flint2_wireless_radio.device | default('radio')) }}"
 
 - name: Read live wireless SSID broadcast by each main AP interface
   when:
     - flint2_wireless.ssid is defined
-    - flint2_verify_live_wireless | default(true) | bool
+    - flint2_verify_live_wireless | bool
     - item.iface is defined
   community.openwrt.command:
     cmd: |
@@ -1009,7 +941,7 @@
 - name: Assert live wireless SSID broadcasts match desired value
   when:
     - flint2_wireless.ssid is defined
-    - flint2_verify_live_wireless | default(true) | bool
+    - flint2_verify_live_wireless | bool
     - flint2_verify_wireless_live_ssids.results | default([]) | length > 0
   ansible.builtin.assert:
     that:
@@ -1025,7 +957,7 @@
   community.openwrt.uci:
     command: get
     key: "wireless.{{ item.0.device }}.{{ item.1 }}"
-  loop: "{{ flint2_wireless.radios | default([]) | product(flint2_wireless_device_option_keys | default([])) | list }}"
+  loop: "{{ flint2_wireless.radios | default([]) | product(flint2_wireless_device_option_keys) | list }}"
   loop_control:
     label: "{{ item.0.device }}.{{ item.1 }}"
   when: item.0[item.1] is defined
@@ -1046,7 +978,7 @@
     label: "{{ item.item.0.device }}.{{ item.item.1 }}"
 
 - name: Read guest and IoT wireless interface disabled state
-  when: flint2_wireless_guest_ifaces | default([]) | length > 0
+  when: flint2_wireless_guest_ifaces | length > 0
   community.openwrt.uci:
     command: get
     key: "wireless.{{ item }}.disabled"
@@ -1067,7 +999,7 @@
 
 - name: Read configured guest and IoT wireless interface options
   when:
-    - flint2_wireless_guest_ifaces | default([]) | length > 0
+    - flint2_wireless_guest_ifaces | length > 0
     - flint2_wireless_guest[item.1] is defined
     - item.1 != 'key' or (flint2_wireless_guest.key | default('') | length > 0)
   community.openwrt.uci:
@@ -1075,8 +1007,8 @@
     key: "wireless.{{ item.0 }}.{{ item.1 }}"
   loop: >-
     {{
-      flint2_wireless_guest_ifaces | default([])
-      | product(flint2_wireless_guest_option_keys | default(['encryption', 'key']))
+      flint2_wireless_guest_ifaces
+      | product(flint2_wireless_guest_option_keys)
       | list
     }}
   loop_control:
@@ -1100,7 +1032,7 @@
   no_log: "{{ item.item.1 == 'key' }}"
 
 - name: Read Dropbear authentication policy
-  when: flint2_ssh_backend | default('openssh') == 'dropbear'
+  when: flint2_ssh_backend == 'dropbear'
   community.openwrt.uci:
     command: get
     key: "{{ item }}"
@@ -1112,8 +1044,7 @@
 
 - name: Assert Dropbear password authentication is disabled
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_password_auth is defined
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_auth.results[0].result == flint2_dropbear_password_auth
@@ -1123,8 +1054,7 @@
 
 - name: Assert Dropbear root password authentication is disabled
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_root_password_auth is defined
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_auth.results[1].result == flint2_dropbear_root_password_auth
@@ -1134,8 +1064,7 @@
 
 - name: Read Dropbear host keyfile list
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_keyfiles is defined
+    - flint2_ssh_backend == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.keyfile
@@ -1145,8 +1074,7 @@
 
 - name: Assert Dropbear host keyfile list matches inventory
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_keyfiles is defined
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - (flint2_verify_dropbear_keyfiles.result_list | default([]) | list) == (flint2_dropbear_keyfiles | list)
@@ -1156,8 +1084,7 @@
 
 - name: Read Dropbear MaxAuthTries
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_max_auth_tries is defined
+    - flint2_ssh_backend == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.MaxAuthTries
@@ -1166,8 +1093,7 @@
 
 - name: Assert Dropbear MaxAuthTries
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_max_auth_tries is defined
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_max_auth_tries.result | string == flint2_dropbear_max_auth_tries | string
@@ -1177,8 +1103,7 @@
 
 - name: Read Dropbear IdleTimeout
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_idle_timeout is defined
+    - flint2_ssh_backend == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.IdleTimeout
@@ -1187,8 +1112,7 @@
 
 - name: Assert Dropbear IdleTimeout
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_idle_timeout is defined
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_idle_timeout.result | string == flint2_dropbear_idle_timeout | string
@@ -1198,8 +1122,7 @@
 
 - name: Read Dropbear mdns setting
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_mdns is defined
+    - flint2_ssh_backend == 'dropbear'
   community.openwrt.uci:
     command: get
     key: dropbear.main.mdns
@@ -1208,8 +1131,7 @@
 
 - name: Assert Dropbear mdns setting
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
-    - flint2_dropbear_mdns is defined
+    - flint2_ssh_backend == 'dropbear'
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_mdns.result | string == flint2_dropbear_mdns | string
@@ -1219,7 +1141,7 @@
 
 - name: Read Dropbear Interface binding
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
     - flint2_dropbear_interface is defined
   community.openwrt.uci:
     command: get
@@ -1229,7 +1151,7 @@
 
 - name: Assert Dropbear Interface binding
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
     - flint2_dropbear_interface is defined
   ansible.builtin.assert:
     that:
@@ -1240,7 +1162,7 @@
 
 - name: Check Dropbear authorized_keys file
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
     - flint2_ssh_require_authorized_keys | bool
   community.openwrt.stat:
     path: /etc/dropbear/authorized_keys
@@ -1249,7 +1171,7 @@
 
 - name: Assert Dropbear authorized_keys exists for key-only SSH
   when:
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
     - flint2_ssh_require_authorized_keys | bool
   ansible.builtin.assert:
     that:
@@ -1258,7 +1180,7 @@
     fail_msg: /etc/dropbear/authorized_keys is missing or empty; key-only SSH requires at least one key
 
 - name: Read OpenSSH hardening drop-in
-  when: flint2_ssh_backend | default('openssh') == 'openssh'
+  when: flint2_ssh_backend == 'openssh'
   community.openwrt.command:
     cmd: cat {{ (flint2_sshd_config_d ~ '/' ~ flint2_sshd_hardening_conf_name) | quote }}
     uses_shell: true
@@ -1266,7 +1188,7 @@
   changed_when: false
 
 - name: Assert OpenSSH algorithm hardening directives
-  when: flint2_ssh_backend | default('openssh') == 'openssh'
+  when: flint2_ssh_backend == 'openssh'
   ansible.builtin.assert:
     that:
       - flint2_verify_sshd_hardening.rc == 0
@@ -1281,7 +1203,7 @@
 
 - name: Check OpenSSH authorized_keys file
   when:
-    - flint2_ssh_backend | default('openssh') == 'openssh'
+    - flint2_ssh_backend == 'openssh'
     - flint2_ssh_require_authorized_keys | bool
   community.openwrt.stat:
     path: /root/.ssh/authorized_keys
@@ -1290,7 +1212,7 @@
 
 - name: Assert OpenSSH authorized_keys exists for key-only SSH
   when:
-    - flint2_ssh_backend | default('openssh') == 'openssh'
+    - flint2_ssh_backend == 'openssh'
     - flint2_ssh_require_authorized_keys | bool
   ansible.builtin.assert:
     that:
@@ -1299,7 +1221,7 @@
     fail_msg: /root/.ssh/authorized_keys is missing or empty; key-only SSH requires at least one key
 
 - name: Assert OpenSSH is listening and Dropbear is not
-  when: flint2_ssh_backend | default('openssh') == 'openssh'
+  when: flint2_ssh_backend == 'openssh'
   community.openwrt.command:
     cmd: |
       set -eu
@@ -1385,7 +1307,7 @@
   when:
     - flint2_tls_enabled | bool
     - flint2_tls_verify_endpoints | bool
-    - flint2_tls_verify_from_client | default(true) | bool
+    - flint2_tls_verify_from_client | bool
   delegate_to: localhost
   become: false
   vars:
@@ -1412,14 +1334,14 @@
 
 - name: Verify nginx security response headers from control node
   when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - flint2_nginx_verify_headers | default(true) | bool
-    - flint2_tls_verify_from_client | default(true) | bool
+    - flint2_nginx_hardening_enabled | bool
+    - flint2_nginx_verify_headers | bool
+    - flint2_tls_verify_from_client | bool
   delegate_to: localhost
   become: false
   ansible.builtin.shell: |
     set -euo pipefail
-    host={{ flint2_tls_verify_host | default(flint2_fqdn | default(ansible_host)) | quote }}
+    host={{ flint2_tls_verify_host | quote }}
     # curl emits CRLF; strip CR so $ anchors match.
     headers="$(curl -skI --max-time 15 "https://${host}/" | tr -d '\r')"
     printf '%s\n' "$headers" | grep -qiE '^strict-transport-security:.*max-age={{ flint2_nginx_hsts_max_age }}'
@@ -1437,14 +1359,14 @@
 
 - name: Verify obsolete CBC TLS 1.2 ciphers are not offered
   when:
-    - flint2_nginx_hardening_enabled | default(true) | bool
-    - flint2_nginx_manage_ssl_ciphers | default(true) | bool
-    - flint2_tls_verify_from_client | default(true) | bool
+    - flint2_nginx_hardening_enabled | bool
+    - flint2_nginx_manage_ssl_ciphers | bool
+    - flint2_tls_verify_from_client | bool
   delegate_to: localhost
   become: false
   ansible.builtin.shell: |
     set -euo pipefail
-    host={{ flint2_tls_verify_host | default(flint2_fqdn | default(ansible_host)) | quote }}
+    host={{ flint2_tls_verify_host | quote }}
     # Force TLS 1.2 with CBC-only OpenSSL cipher names; handshake must fail.
     if echo | openssl s_client -connect "${host}:443" -servername "${host}" -tls1_2 \
       -cipher 'ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384' \
@@ -1461,7 +1383,7 @@
   when:
     - flint2_tls_enabled | bool
     - flint2_tls_verify_endpoints | bool
-    - flint2_tls_verify_from_client | default(true) | bool
+    - flint2_tls_verify_from_client | bool
   delegate_to: localhost
   become: false
   vars:

@@ -10,6 +10,7 @@
   loop: "{{ flint2_wireless.radios | product(flint2_wireless_device_option_keys) | list }}"
   loop_control:
     label: "{{ item.0.device }}.{{ item.1 }}={{ item.0.get(item.1, '') }}"
+  notify: flint2 wifi changed
 
 # Shared keys apply to every main iface unless that radio's iface_options overrides the key.
 - name: Configure wireless options on main AP interfaces
@@ -27,6 +28,7 @@
   loop_control:
     label: "{{ item.0.iface }}.{{ item.1 }}"
   no_log: "{{ item.1 == 'key' }}"
+  notify: flint2 wifi changed
 
 # Per-radio wifi-iface options (B6 macfilter/maclist; B9 ieee80211w). Prefer overrides over shared keys.
 - name: Apply per-radio wireless interface options
@@ -41,17 +43,18 @@
 
 - name: Configure encryption and key on guest and IoT interfaces
   when:
-    - flint2_wireless_guest_ifaces | default([]) | length > 0
+    - flint2_wireless_guest_ifaces | length > 0
     - flint2_wireless_guest[item.1] is defined
     - item.1 != 'key' or (flint2_wireless_guest.key | default('') | length > 0)
   community.openwrt.uci:
     command: set
     key: "wireless.{{ item.0 }}.{{ item.1 }}"
     value: "{{ flint2_wireless_guest[item.1] }}"
-  loop: "{{ flint2_wireless_guest_ifaces | product(flint2_wireless_guest_option_keys | default(['encryption', 'key'])) | list }}"
+  loop: "{{ flint2_wireless_guest_ifaces | product(flint2_wireless_guest_option_keys) | list }}"
   loop_control:
     label: "{{ item.0 }}.{{ item.1 }}"
   no_log: "{{ item.1 == 'key' }}"
+  notify: flint2 wifi changed
 
 - name: Read factory MAC address for main AP interfaces
   when:
@@ -72,7 +75,8 @@
     - flint2_wireless.radios | default([]) | length > 0
     - flint2_wireless.random_bssid | default('') | string == '0'
     - item.item.iface is defined
-    - item.result is defined
+    # result carries the uci error text when factory_macaddr is missing; result_list only exists on success.
+    - item.result_list is defined
     - item.result | length > 0
   community.openwrt.uci:
     command: set
@@ -81,3 +85,4 @@
   loop: "{{ flint2_wireless_factory_macaddrs.results | default([]) }}"
   loop_control:
     label: "{{ item.item.iface }}.macaddr={{ item.result }}"
+  notify: flint2 wifi changed

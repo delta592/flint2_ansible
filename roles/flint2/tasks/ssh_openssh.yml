@@ -37,14 +37,12 @@
     value: "0"
 
 - name: Disable Dropbear password authentication
-  when: flint2_dropbear_password_auth is defined
   community.openwrt.uci:
     command: set
     key: dropbear.main.PasswordAuth
     value: "{{ flint2_dropbear_password_auth }}"
 
 - name: Disable Dropbear root password authentication
-  when: flint2_dropbear_root_password_auth is defined
   community.openwrt.uci:
     command: set
     key: dropbear.main.RootPasswordAuth
@@ -172,10 +170,10 @@
     - flint2_sshd_reload is defined
     - flint2_sshd_reload is unreachable or flint2_sshd_reload is changed
   community.openwrt.wait_for_connection:
-    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
-    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
-    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
-    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"
+    delay: "{{ flint2_ssh_wait_delay }}"
+    timeout: "{{ flint2_ssh_wait_timeout }}"
+    sleep: "{{ flint2_ssh_wait_sleep }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout }}"
 
 - name: Cut over from Dropbear to OpenSSH (background)
   when:
@@ -206,7 +204,7 @@
     - not ansible_check_mode
     - flint2_sshd_apply_mode.stdout is search('cutover')
   community.openwrt.wait_for_connection:
-    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
-    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
-    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
-    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"
+    delay: "{{ flint2_ssh_wait_delay }}"
+    timeout: "{{ flint2_ssh_wait_timeout }}"
+    sleep: "{{ flint2_ssh_wait_sleep }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout }}"

@@ -83,10 +83,10 @@ syntax: setup install
 	$(UV) run ansible-playbook --syntax-check playbooks/site.yml
 	$(UV) run ansible-playbook --syntax-check playbooks/ping.yml
 
-## Run pytest with coverage
+## Run pytest project and role-variable tests
 .PHONY: pytest
 pytest: setup
-	$(UV) run pytest --cov --cov-report=term-missing
+	$(UV) run pytest
 
 ## Scan the repository for accidentally committed secrets
 .PHONY: secrets
