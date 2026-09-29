@@ -15,7 +15,6 @@ ROLE = ROOT / "roles/flint2"
 MOLECULE_VARS_READ_OUTSIDE_ROLE = {
     "flint2_bridge",
     "flint2_firmware_auto_update_check",
-    "flint2_wireless_device_option_keys",
 }
 
 

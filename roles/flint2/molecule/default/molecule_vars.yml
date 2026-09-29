@@ -1,8 +1,8 @@
 ---
 # Shared variables for Molecule converge and verify playbooks.
-# Keep this to test-specific values. flint2_bridge, flint2_firmware_auto_update_check,
-# and flint2_wireless_device_option_keys repeat role defaults on purpose: prepare.yml
-# and verify.yml read them outside the role, where role defaults are not visible.
+# Keep this to test-specific values. flint2_bridge and flint2_firmware_auto_update_check
+# repeat role defaults on purpose: prepare.yml and verify.yml read them outside the
+# role, where role defaults are not visible.
 flint2_hostname: molecule-flint2
 flint2_firmware_auto_update_check: "0"
 flint2_verify_glinet_settings: false
@@ -26,18 +26,6 @@ flint2_bridge:
   igmp_snooping: "1"
   multicast_querier: "1"
 flint2_ssh_backend: dropbear
-flint2_wireless_device_option_keys:
-  - band
-  - htmode
-  - channel
-  - ht_coex
-  - hwmode
-  - legacy_rates
-  - require_mode
-  - txpower
-  - acs_exclude_dfs
-  - cell_density
-  - random_bssid
 flint2_wireless:
   ssid: MOLECULE
   encryption: sae-mixed

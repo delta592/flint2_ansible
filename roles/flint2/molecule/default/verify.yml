@@ -10,63 +10,23 @@
         name: flint2
         tasks_from: verify.yml
 
+    # The role check above is gated on flint2_verify_glinet_settings (false here), so
+    # assert that converge flipped the upgrade_enable=1 seeded by prepare.yml.
     - name: Read GL.iNet firmware Automatic Update Check setting
-      when: flint2_firmware_auto_update_check is defined
       community.openwrt.uci:
         command: get
         key: upgrade.general.upgrade_enable
       register: flint2_molecule_verify_firmware_auto_update_check
       changed_when: false
 
-    - name: Assert GL.iNet firmware Automatic Update Check matches desired value
-      when: flint2_firmware_auto_update_check is defined
+    - name: Assert GL.iNet firmware Automatic Update Check was flipped from the seeded value
       ansible.builtin.assert:
         that:
           - flint2_molecule_verify_firmware_auto_update_check.result == flint2_firmware_auto_update_check
         fail_msg: >-
           upgrade.general.upgrade_enable is
           '{{ flint2_molecule_verify_firmware_auto_update_check.result }}',
-          expected '{{ flint2_firmware_auto_update_check }}'
-
-    - name: Read configured wireless encryption on main AP interfaces
-      community.openwrt.uci:
-        command: get
-        key: "wireless.{{ item.iface }}.encryption"
-      loop: "{{ flint2_wireless.radios }}"
-      register: flint2_molecule_verify_wireless_encryption
-      changed_when: false
-
-    - name: Assert wireless encryption matches desired value
-      ansible.builtin.assert:
-        that:
-          - item.result == flint2_wireless.encryption
-        fail_msg: >-
-          encryption on {{ item.item.iface }} is '{{ item.result }}',
-          expected '{{ flint2_wireless.encryption }}'
-      loop: "{{ flint2_molecule_verify_wireless_encryption.results }}"
-      loop_control:
-        label: "{{ item.item.iface }}"
-
-    - name: Read configured wireless radio device settings
-      community.openwrt.uci:
-        command: get
-        key: "wireless.{{ item.0.device }}.{{ item.1 }}"
-      loop: "{{ flint2_wireless.radios | product(flint2_wireless_device_option_keys) | list }}"
-      when: item.0[item.1] is defined
-      register: flint2_molecule_verify_radio_options
-      changed_when: false
-
-    - name: Assert wireless radio device settings match desired values
-      ansible.builtin.assert:
-        that:
-          - item.result == item.item.0[item.item.1]
-        fail_msg: >-
-          wireless.{{ item.item.0.device }}.{{ item.item.1 }} is '{{ item.result }}',
-          expected '{{ item.item.0[item.item.1] }}'
-      loop: "{{ flint2_molecule_verify_radio_options.results | default([]) | selectattr('skipped', 'undefined') | list }}"
-      when: flint2_molecule_verify_radio_options.results | default([]) | length > 0
-      loop_control:
-        label: "{{ item.item.0.device }}.{{ item.item.1 }}"
+          expected '{{ flint2_firmware_auto_update_check }}' (prepare.yml seeds '1')
 
     - name: Read vendor chrony pool and DHCP NTP server disabled state
       community.openwrt.uci:
