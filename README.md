@@ -1,6 +1,6 @@
 # flint2_ansible
 
-Ansible automation for the [GL.iNet GL-MT6000 (Flint 2)](https://www.gl-inet.com/products/flint-2/) running GL.iNet firmware on OpenWrt. This project configures Access Point mode, wireless networks, TLS certificates, and SSH access using the [`community.openwrt`](https://galaxy.ansible.com/community/openwrt) collection.
+Ansible automation for the [GL.iNet GL-MT6000 (Flint 2)](https://www.gl-inet.com/en-us/products/gl-mt6000) running GL.iNet firmware on OpenWrt. This project configures Access Point mode, wireless networks, TLS certificates, and SSH access using the [`community.openwrt`](https://galaxy.ansible.com/community/openwrt) collection.
 
 Configuration is driven by UCI and shell-based modules — no Python runtime is required on the router.
 
