@@ -80,7 +80,7 @@ Common validation targets:
 | `make lint` | ansible-lint and yamllint |
 | `make syntax` | `ansible-playbook --syntax-check` |
 | `make check` | Dry-run site playbook with diffs |
-| `make pytest` | Project unit tests with coverage |
+| `make pytest` | Project and role-variable parity tests (pytest) |
 | `make molecule` | Molecule role integration tests (Docker/Colima) |
 | `make colima-start` | Start Colima for Molecule tests |
 | `make secrets` | Gitleaks secret scan |
@@ -114,7 +114,7 @@ Optional environment variables:
 | `MOLECULE_OPENWRT_REBUILD=true` | Force rebuild of the local 25.12.5 rootfs image |
 | `MOLECULE_OPENWRT_PRUNE_IMAGE=true` | Remove the local 25.12.5 image during `molecule destroy` |
 
-The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), a `br-lan` bridge device section, GL.iNet-style `upgrade.general` and `oui-httpd.main` sections, and a stub `/etc/nginx/conf.d/gl.conf`. It also installs `chrony` so NTP converges through the same chronyd backend as GL.iNet firmware. Prepare also generates throwaway self-signed TLS material in the Molecule ephemeral directory. It then applies and verifies the `packages`, `system`, `ntp`, `network`, `wireless`, `upgrade`, `usteer`, `tls`, `luci`, `access_control`, `statistics`, and `ssh` task files; the `usteer`, `luci`, and `statistics` steps install packages from the OpenWrt 25.12.5 feeds, so the container needs outbound network access. TLS endpoint checks, nginx hardening, and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
+The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), a `br-lan` bridge device section, GL.iNet-style `upgrade.general` and `oui-httpd.main` sections, and a stub `/etc/nginx/conf.d/gl.conf`. It also installs `chrony` so NTP converges through the same chronyd backend as GL.iNet firmware. Prepare also generates throwaway self-signed TLS material in the Molecule ephemeral directory. Converge then runs the role through its main entry point, like `playbooks/site.yml`, so `tasks/main.yml`, `argument_specs` validation, UCI apply with handlers, and the role's own verify tasks are all exercised; the `packages`, `system`, `upgrade`, `ntp`, `network`, `wireless`, `usteer`, `tls`, `luci`, `access_control`, `statistics`, and `ssh` areas make real changes. The `usteer`, `luci`, and `statistics` steps install packages from the OpenWrt 25.12.5 feeds, so the container needs outbound network access. The test sequence is create → prepare → converge → idempotence → check (a `--check` dry run on the converged host) → verify → destroy. TLS endpoint checks, nginx hardening, and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
@@ -262,7 +262,7 @@ roles/flint2/               # Main configuration role
 
 tests/
   molecule/                 # Shared Molecule create/destroy playbooks
-  test_project.py           # pytest project sanity checks
+  test_project.py           # required files, Makefile --tags declared, role templates exist
   test_role_variables.py    # defaults ↔ argument_specs parity; no inventory duplicates or redundant fallbacks
 
 docs/
