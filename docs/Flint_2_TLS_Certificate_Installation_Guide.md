@@ -84,7 +84,7 @@ ssh root@192.168.0.247
 ssh wapap1003
 ```
 
-Ansible client options in [`inventory/host_vars/router.yml`](../inventory/host_vars/router.yml) already match the server suite and disable ControlMaster so a mux cannot hold an old Dropbear session across cutover.
+Ansible client options in [`inventory/host_vars/router.yml`](../inventory/host_vars/router.yml) already match the server suite. SSH multiplexing stays on for speed; each post-bounce `wait_for_connection` stops the mux, so it cannot hold an old Dropbear session across cutover.
 
 ### Bootstrap (factory Dropbear + temporary password)
 

@@ -1,33 +1,62 @@
 ---
+# One uci set per section (dict value) instead of one per option: each module
+# call costs several round trips to the router.
 - name: Configure wireless radio device settings
   when:
     - flint2_wireless.radios | default([]) | length > 0
-    - item.0[item.1] is defined
+    - flint2_wireless_radio_options | length > 0
+  vars:
+    flint2_wireless_radio_options: >-
+      {{ item | dict2items | selectattr('key', 'in', flint2_wireless_device_option_keys) | items2dict }}
   community.openwrt.uci:
     command: set
-    key: "wireless.{{ item.0.device }}.{{ item.1 }}"
-    value: "{{ item.0[item.1] }}"
-  loop: "{{ flint2_wireless.radios | product(flint2_wireless_device_option_keys) | list }}"
+    key: "wireless.{{ item.device }}"
+    value: "{{ flint2_wireless_radio_options }}"
+  loop: "{{ flint2_wireless.radios }}"
   loop_control:
-    label: "{{ item.0.device }}.{{ item.1 }}={{ item.0.get(item.1, '') }}"
+    label: "{{ item.device }}"
   notify: flint2 wifi changed
 
 # Shared keys apply to every main iface unless that radio's iface_options overrides the key.
+# The passphrase is set separately so only that task hides its output.
 - name: Configure wireless options on main AP interfaces
   when:
     - flint2_wireless.radios | default([]) | length > 0
-    - item.0.iface is defined
-    - flint2_wireless[item.1] is defined
-    - item.1 != 'key' or (flint2_wireless.key | default('') | length > 0)
-    - item.0.iface_options is not defined or item.1 not in item.0.iface_options
+    - item.iface is defined
+    - flint2_wireless_iface_shared_options | length > 0
+  vars:
+    flint2_wireless_iface_shared_options: >-
+      {{
+        flint2_wireless | dict2items
+        | selectattr('key', 'in', flint2_wireless_iface_option_keys)
+        | rejectattr('key', 'equalto', 'key')
+        | rejectattr('key', 'in', item.iface_options | default({}))
+        | items2dict
+      }}
   community.openwrt.uci:
     command: set
-    key: "wireless.{{ item.0.iface }}.{{ item.1 }}"
-    value: "{{ flint2_wireless[item.1] }}"
-  loop: "{{ flint2_wireless.radios | product(flint2_wireless_iface_option_keys) | list }}"
+    key: "wireless.{{ item.iface }}"
+    value: "{{ flint2_wireless_iface_shared_options }}"
+  loop: "{{ flint2_wireless.radios }}"
   loop_control:
-    label: "{{ item.0.iface }}.{{ item.1 }}"
-  no_log: "{{ item.1 == 'key' }}"
+    label: "{{ item.iface | default(item.device) }}"
+  notify: flint2 wifi changed
+
+- name: Configure wireless key on main AP interfaces
+  when:
+    - flint2_wireless.radios | default([]) | length > 0
+    - item.iface is defined
+    - "'key' in flint2_wireless_iface_option_keys"
+    - flint2_wireless.key | default('') | length > 0
+    - "'key' not in item.iface_options | default({})"
+  community.openwrt.uci:
+    command: set
+    key: "wireless.{{ item.iface }}.key"
+    value: "{{ flint2_wireless.key }}"
+  loop: "{{ flint2_wireless.radios }}"
+  loop_control:
+    label: "{{ item.iface | default(item.device) }}.key"
+  no_log: true
   notify: flint2 wifi changed
 
 # Per-radio wifi-iface options (B6 macfilter/maclist; B9 ieee80211w). Prefer overrides over shared keys.

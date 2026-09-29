@@ -104,17 +104,18 @@ make test-all        # or: make molecule
 
 If Colima was previously started without Rosetta, stop it first (`colima stop`) and run `make colima-start` again.
 
-When Colima is running, Make automatically sets `DOCKER_HOST` to `unix://$HOME/.colima/default/docker.sock`. Molecule builds and runs the 25.12.5 test image with `platform: linux/amd64`. To use a different runtime, set `DOCKER_HOST` yourself before running Molecule.
+When Colima is running, Make automatically sets `DOCKER_HOST` to `unix://$HOME/.colima/default/docker.sock`. Molecule builds and runs the 25.12.5 test image for the Docker host's architecture: `armsr/armv8` (`linux/arm64`, the same aarch64 userspace as the Flint 2) on Apple Silicon, and `x86/64` (`linux/amd64`) elsewhere. Running natively avoids Rosetta or QEMU emulation, which slows every `docker exec` the `community.openwrt` modules make. The image is built once and reused; later runs skip the rootfs download. To use a different runtime, set `DOCKER_HOST` yourself before running Molecule.
 
 Optional environment variables:
 
 | Variable | Purpose |
 | --- | --- |
 | `MOLECULE_OPENWRT_BACKEND=albrechtloh` | Use the albrechtloh QEMU image over SSH (Linux host with KVM) |
+| `MOLECULE_OPENWRT_ARCH=x86_64` | Force the rootfs architecture (`x86_64` or `aarch64`) instead of matching the Docker host |
 | `MOLECULE_OPENWRT_REBUILD=true` | Force rebuild of the local 25.12.5 rootfs image |
-| `MOLECULE_OPENWRT_PRUNE_IMAGE=true` | Remove the local 25.12.5 image during `molecule destroy` |
+| `MOLECULE_OPENWRT_PRUNE_IMAGE=true` | Remove the local 25.12.5 images during `molecule destroy` |
 
-The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), a `br-lan` bridge device section, GL.iNet-style `upgrade.general` and `oui-httpd.main` sections, and a stub `/etc/nginx/conf.d/gl.conf`. It also installs `chrony` so NTP converges through the same chronyd backend as GL.iNet firmware. Prepare also generates throwaway self-signed TLS material in the Molecule ephemeral directory. Converge then runs the role through its main entry point, like `playbooks/site.yml`, so `tasks/main.yml`, `argument_specs` validation, UCI apply with handlers, and the role's own verify tasks are all exercised; the `packages`, `system`, `upgrade`, `ntp`, `network`, `wireless`, `usteer`, `tls`, `luci`, `access_control`, `statistics`, and `ssh` areas make real changes. The `usteer`, `luci`, and `statistics` steps install packages from the OpenWrt 25.12.5 feeds, so the container needs outbound network access. The test sequence is create → prepare → converge → idempotence → check (a `--check` dry run on the converged host) → verify → destroy. TLS endpoint checks, nginx hardening, and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
+The Molecule scenario seeds synthetic OP25-style wireless UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1`), a `br-lan` bridge device section, GL.iNet-style `upgrade.general` and `oui-httpd.main` sections, and a stub `/etc/nginx/conf.d/gl.conf`. It also installs `chrony` so NTP converges through the same chronyd backend as GL.iNet firmware. Prepare stops `netifd` first: in an unprivileged container it hangs, and each init script that asks it for interface state (chronyd, usteer, Dropbear) would otherwise wait out a 30-second ubus timeout. Prepare also generates throwaway self-signed TLS material in the Molecule ephemeral directory. Converge then runs the role through its main entry point, like `playbooks/site.yml`, so `tasks/main.yml`, `argument_specs` validation, and UCI apply with handlers are exercised (the `verify` tag is skipped there; the verify step runs the role's own verify tasks once instead of after every converge); the `packages`, `system`, `upgrade`, `ntp`, `network`, `wireless`, `usteer`, `tls`, `luci`, `access_control`, `statistics`, and `ssh` areas make real changes. The `usteer`, `luci`, and `statistics` steps install packages from the OpenWrt 25.12.5 feeds, so the container needs outbound network access. The test sequence is create → prepare → converge → idempotence → check (a `--check` dry run on the converged host) → verify → destroy. TLS endpoint checks, nginx hardening, and other GL.iNet-specific checks are skipped in Docker; use `make check` and `make verify` against the real router for those.
 
 ## Secrets and certificates
 
@@ -281,7 +282,7 @@ GL.iNet OP25 ships **Dropbear** by default. This role sets `flint2_ssh_backend: 
 4. Disables Dropbear (`dropbear.main.enable=0`) and binds sshd to the management IP
 5. Reloads sshd with a post-bounce `wait_for_connection` so Ansible reconnects cleanly
 
-Inventory client args in [`inventory/host_vars/router.yml`](inventory/host_vars/router.yml) match the server suite and set `ControlMaster=no` so a mux cannot hold an old Dropbear session across cutover. After firmware reset, run `make known-hosts-reset` (also exits stale ControlMaster sockets).
+Inventory client args in [`inventory/host_vars/router.yml`](inventory/host_vars/router.yml) match the server suite. [`ansible.cfg`](ansible.cfg) keeps SSH multiplexing on (`ControlPersist=60s`, socket `~/.ansible/cp/root@<host>-22`), because every `community.openwrt` task makes several SSH round trips and a fresh key exchange for each one made `make check` and `make site` take many minutes. The mux cannot hold an old Dropbear session across cutover: each post-bounce `wait_for_connection` stops it before reconnecting. After firmware reset, run `make known-hosts-reset` (also exits stale ControlMaster sockets, including Ansible's).
 
 Re-audit after changes:
 

@@ -1,8 +1,10 @@
 ---
 # Run the role through its main entry point, like playbooks/site.yml, so converge
-# exercises tasks/main.yml (tag and when wiring), argument_specs validation, UCI
-# apply + handlers, and the role's own verify.yml. Areas that need GL.iNet-only
-# files (nginx hardening, live radio/bridge checks) are disabled in molecule_vars.yml.
+# exercises tasks/main.yml (tag and when wiring), argument_specs validation, and
+# UCI apply + handlers. The role's verify.yml is skipped here (ANSIBLE_SKIP_TAGS in
+# molecule.yml) and runs once in the verify step instead of after every converge.
+# Areas that need GL.iNet-only files (nginx hardening, live radio/bridge checks)
+# are disabled in molecule_vars.yml.
 - name: Converge
   hosts: all
   gather_facts: false

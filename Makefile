@@ -166,6 +166,8 @@ bootstrap-check:
 known-hosts-reset:
 	-ssh -O exit -o ControlPath=$(HOME)/.ssh/control/root@192.168.0.247_22 root@192.168.0.247 2>/dev/null
 	-ssh -O exit -o ControlPath=$(HOME)/.ssh/control/root@wapap1003_22 root@wapap1003 2>/dev/null
+	-ssh -O exit -o ControlPath=$(HOME)/.ansible/cp/root@192.168.0.247-22 root@192.168.0.247 2>/dev/null
+	-ssh -O exit -o ControlPath=$(HOME)/.ansible/cp/root@wapap1003-22 root@wapap1003 2>/dev/null
 	-ssh-keygen -R wapap1003 2>/dev/null
 	-ssh-keygen -R wapap1003.federation.lcars 2>/dev/null
 	-ssh-keygen -R 192.168.0.247 2>/dev/null

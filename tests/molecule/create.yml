@@ -4,6 +4,8 @@
   gather_facts: false
   vars:
     molecule_openwrt_backend: "{{ lookup('env', 'MOLECULE_OPENWRT_BACKEND') | default('', true) }}"
+    molecule_openwrt_arch: "{{ lookup('env', 'MOLECULE_OPENWRT_ARCH') | default('', true) }}"
+    molecule_openwrt_rebuild: "{{ lookup('env', 'MOLECULE_OPENWRT_REBUILD') | default('false', true) | bool }}"
   tasks:
     - name: Read OpenWrt test platform settings
       ansible.builtin.include_vars:
@@ -46,44 +48,76 @@
           Using OpenWrt {{ _openwrt.version }} backend '{{ _openwrt_backend }}'
           (reference image {{ _openwrt.reference_image }})
 
-    - name: Create image build context directory
+    # Emulating another architecture (Rosetta/QEMU) slows every docker exec, and
+    # each community.openwrt task makes several of them.
+    - name: Read Docker host architecture
       when: _openwrt_backend == 'rootfs'
-      ansible.builtin.file:
-        path: "{{ molecule_ephemeral_directory }}/openwrt-image"
-        state: directory
-        mode: "0755"
+      community.docker.docker_host_info:
+      register: _openwrt_docker_host
 
-    - name: Download OpenWrt rootfs tarball
+    - name: Select OpenWrt rootfs for the Docker host architecture
       when: _openwrt_backend == 'rootfs'
-      ansible.builtin.get_url:
-        url: "{{ _openwrt.rootfs.url }}"
-        dest: "{{ molecule_ephemeral_directory }}/openwrt-image/rootfs.tar.gz"
-        mode: "0644"
+      vars:
+        _openwrt_arch: >-
+          {{
+            molecule_openwrt_arch
+            if molecule_openwrt_arch | length > 0
+            else ('aarch64' if _openwrt_docker_host.host_info.Architecture in ['aarch64', 'arm64'] else 'x86_64')
+          }}
+      ansible.builtin.set_fact:
+        _openwrt_rootfs: >-
+          {{
+            _openwrt.rootfs.arches[_openwrt_arch]
+            | combine({'arch': _openwrt_arch, 'image': _openwrt.rootfs.local_image ~ '-' ~ _openwrt_arch})
+          }}
 
-    - name: Stage Dockerfile for OpenWrt rootfs image
+    - name: Check for a cached OpenWrt rootfs test image
       when: _openwrt_backend == 'rootfs'
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/images/openwrt-25.12.5/Dockerfile"
-        dest: "{{ molecule_ephemeral_directory }}/openwrt-image/Dockerfile"
-        mode: "0644"
+      community.docker.docker_image_info:
+        name: "{{ _openwrt_rootfs.image }}"
+      register: _openwrt_rootfs_image
 
-    - name: Build OpenWrt 25.12.5 rootfs test image
-      when: _openwrt_backend == 'rootfs'
-      community.docker.docker_image:
-        name: "{{ _openwrt.rootfs.local_image }}"
-        build:
-          path: "{{ molecule_ephemeral_directory }}/openwrt-image"
-          platform: linux/amd64
-        source: build
-        force_source: "{{ lookup('env', 'MOLECULE_OPENWRT_REBUILD') | default('false', true) | bool }}"
+    # The rootfs download and image build only run when the image is missing
+    # (or MOLECULE_OPENWRT_REBUILD=true), not on every molecule test.
+    - name: Build OpenWrt rootfs test image
+      when:
+        - _openwrt_backend == 'rootfs'
+        - molecule_openwrt_rebuild or _openwrt_rootfs_image.images | length == 0
+      block:
+        - name: Create image build context directory
+          ansible.builtin.file:
+            path: "{{ molecule_ephemeral_directory }}/openwrt-image"
+            state: directory
+            mode: "0755"
+
+        - name: Download OpenWrt rootfs tarball
+          ansible.builtin.get_url:
+            url: "{{ _openwrt_rootfs.url }}"
+            dest: "{{ molecule_ephemeral_directory }}/openwrt-image/rootfs.tar.gz"
+            mode: "0644"
+
+        - name: Stage Dockerfile for OpenWrt rootfs image
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/images/openwrt-25.12.5/Dockerfile"
+            dest: "{{ molecule_ephemeral_directory }}/openwrt-image/Dockerfile"
+            mode: "0644"
+
+        - name: Build OpenWrt 25.12.5 rootfs test image
+          community.docker.docker_image:
+            name: "{{ _openwrt_rootfs.image }}"
+            build:
+              path: "{{ molecule_ephemeral_directory }}/openwrt-image"
+              platform: "{{ _openwrt_rootfs.platform }}"
+            source: build
+            force_source: "{{ molecule_openwrt_rebuild }}"
 
     - name: Start OpenWrt rootfs test container
       when: _openwrt_backend == 'rootfs'
       community.docker.docker_container:
         name: "{{ _openwrt.container_name }}"
-        image: "{{ _openwrt.rootfs.local_image }}"
+        image: "{{ _openwrt_rootfs.image }}"
         command: /sbin/init
-        platform: linux/amd64
+        platform: "{{ _openwrt_rootfs.platform }}"
         state: started
         auto_remove: false
       register: _openwrt_rootfs_container
@@ -125,11 +159,13 @@
         state: directory
         mode: "0755"
 
+    # docker_api talks to the Docker socket directly instead of spawning a docker
+    # CLI process for every exec and file transfer (about 2.5x faster per task).
     - name: Build rootfs inventory
       when: _openwrt_backend == 'rootfs'
       ansible.builtin.set_fact:
         _openwrt_host_vars:
-          ansible_connection: community.docker.docker
+          ansible_connection: community.docker.docker_api
 
     - name: Build albrechtloh inventory
       when: _openwrt_backend == 'albrechtloh'
