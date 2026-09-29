@@ -22,14 +22,12 @@
   changed_when: false
 
 - name: Assert system hostname matches desired value
-  when: flint2_hostname is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_hostname.result == flint2_hostname
     fail_msg: "Hostname is '{{ flint2_verify_hostname.result }}', expected '{{ flint2_hostname }}'"
 
 - name: Read configured LuCI time format
-  when: flint2_clock_hourcycle is defined
   community.openwrt.uci:
     command: get
     key: system.@system[0].clock_hourcycle
@@ -37,7 +35,6 @@
   changed_when: false
 
 - name: Assert LuCI time format matches desired value
-  when: flint2_clock_hourcycle is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_clock_hourcycle.result == flint2_clock_hourcycle
@@ -47,7 +44,6 @@
 
 - name: Read live kernel hostname
   when:
-    - flint2_hostname is defined
     - flint2_verify_live_hostname | bool
   community.openwrt.command:
     cmd: cat /proc/sys/kernel/hostname
@@ -57,7 +53,6 @@
 
 - name: Assert live kernel hostname matches desired value
   when:
-    - flint2_hostname is defined
     - flint2_verify_live_hostname | bool
   ansible.builtin.assert:
     that:
@@ -132,7 +127,6 @@
 
 - name: Read GL.iNet firmware Automatic Update Check setting
   when:
-    - flint2_firmware_auto_update_check is defined
     - flint2_verify_glinet_settings | bool
   community.openwrt.uci:
     command: get
@@ -142,7 +136,6 @@
 
 - name: Assert GL.iNet firmware Automatic Update Check matches desired value
   when:
-    - flint2_firmware_auto_update_check is defined
     - flint2_verify_glinet_settings | bool
   ansible.builtin.assert:
     that:
@@ -155,7 +148,6 @@
 - name: Read GL.iNet network mode
   when:
     - flint2_verify_glinet_settings | bool
-    - flint2_network_mode is defined
   community.openwrt.uci:
     command: get
     key: glconfig.general.mode
@@ -165,14 +157,12 @@
 - name: Assert GL.iNet network mode matches desired value
   when:
     - flint2_verify_glinet_settings | bool
-    - flint2_network_mode is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_network_mode.result == flint2_network_mode
     fail_msg: "Network mode is '{{ flint2_verify_network_mode.result }}', expected '{{ flint2_network_mode }}'"
 
 - name: Read LAN interface protocol
-  when: flint2_lan_proto is defined
   community.openwrt.uci:
     command: get
     key: network.lan.proto
@@ -180,7 +170,6 @@
   changed_when: false
 
 - name: Assert LAN uses expected IP protocol
-  when: flint2_lan_proto is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_lan_proto.result == flint2_lan_proto
@@ -1056,7 +1045,6 @@
 - name: Assert Dropbear password authentication is disabled
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_password_auth is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_auth.results[0].result == flint2_dropbear_password_auth
@@ -1067,7 +1055,6 @@
 - name: Assert Dropbear root password authentication is disabled
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_root_password_auth is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_auth.results[1].result == flint2_dropbear_root_password_auth
@@ -1078,7 +1065,6 @@
 - name: Read Dropbear host keyfile list
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_keyfiles is defined
   community.openwrt.uci:
     command: get
     key: dropbear.main.keyfile
@@ -1089,7 +1075,6 @@
 - name: Assert Dropbear host keyfile list matches inventory
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_keyfiles is defined
   ansible.builtin.assert:
     that:
       - (flint2_verify_dropbear_keyfiles.result_list | default([]) | list) == (flint2_dropbear_keyfiles | list)
@@ -1100,7 +1085,6 @@
 - name: Read Dropbear MaxAuthTries
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_max_auth_tries is defined
   community.openwrt.uci:
     command: get
     key: dropbear.main.MaxAuthTries
@@ -1110,7 +1094,6 @@
 - name: Assert Dropbear MaxAuthTries
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_max_auth_tries is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_max_auth_tries.result | string == flint2_dropbear_max_auth_tries | string
@@ -1121,7 +1104,6 @@
 - name: Read Dropbear IdleTimeout
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_idle_timeout is defined
   community.openwrt.uci:
     command: get
     key: dropbear.main.IdleTimeout
@@ -1131,7 +1113,6 @@
 - name: Assert Dropbear IdleTimeout
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_idle_timeout is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_idle_timeout.result | string == flint2_dropbear_idle_timeout | string
@@ -1142,7 +1123,6 @@
 - name: Read Dropbear mdns setting
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_mdns is defined
   community.openwrt.uci:
     command: get
     key: dropbear.main.mdns
@@ -1152,7 +1132,6 @@
 - name: Assert Dropbear mdns setting
   when:
     - flint2_ssh_backend == 'dropbear'
-    - flint2_dropbear_mdns is defined
   ansible.builtin.assert:
     that:
       - flint2_verify_dropbear_mdns.result | string == flint2_dropbear_mdns | string

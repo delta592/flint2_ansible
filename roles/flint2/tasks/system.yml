@@ -1,6 +1,5 @@
 ---
 - name: Set system hostname
-  when: flint2_hostname is defined
   community.openwrt.uci:
     command: set
     key: system.@system[0].hostname
@@ -8,7 +7,6 @@
   notify: flint2 system changed
 
 - name: Set LuCI time format
-  when: flint2_clock_hourcycle is defined
   community.openwrt.uci:
     command: set
     key: system.@system[0].clock_hourcycle
