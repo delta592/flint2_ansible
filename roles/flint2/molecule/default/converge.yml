@@ -40,6 +40,11 @@
         name: flint2
         tasks_from: usteer.yml
 
+    - name: Install Flint 2 TLS certificates
+      ansible.builtin.import_role:
+        name: flint2
+        tasks_from: tls.yml
+
     - name: Ensure LuCI is installed and configured
       ansible.builtin.import_role:
         name: flint2

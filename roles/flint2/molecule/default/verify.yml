@@ -174,3 +174,60 @@
       loop: "{{ flint2_molecule_verify_macaddr.results }}"
       loop_control:
         label: "{{ item.item.iface }}"
+
+    - name: Read TLS fixture checksums on the control node
+      delegate_to: localhost
+      ansible.builtin.stat:
+        path: "{{ flint2_tls_cert_files_dir }}/{{ item }}"
+        checksum_algorithm: sha256
+      loop:
+        - fullchain.crt
+        - server.key
+      register: flint2_molecule_verify_tls_local
+
+    - name: Read installed TLS material checksums on the container
+      community.openwrt.stat:
+        path: "{{ item.path }}"
+        checksum_algorithm: sha256
+      loop:
+        - path: /etc/nginx/nginx.cer
+          src: 0
+        - path: /etc/nginx/nginx.key
+          src: 1
+        - path: /etc/uhttpd.crt
+          src: 0
+        - path: /etc/uhttpd.key
+          src: 1
+      loop_control:
+        label: "{{ item.path }}"
+      register: flint2_molecule_verify_tls_remote
+
+    - name: Assert installed TLS material matches the control-node full chain and key
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.checksum == flint2_molecule_verify_tls_local.results[item.item.src].stat.checksum
+          - item.stat.mode == ('0644' if item.item.src == 0 else '0600')
+        fail_msg: "{{ item.item.path }} does not match {{ flint2_molecule_verify_tls_local.results[item.item.src].item }}"
+      loop: "{{ flint2_molecule_verify_tls_remote.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    - name: Read TLS fixture leaf and intermediate certificates
+      delegate_to: localhost
+      ansible.builtin.slurp:
+        src: "{{ flint2_tls_cert_files_dir }}/{{ item }}"
+      loop:
+        - server.crt
+        - intermediate.crt
+        - fullchain.crt
+      register: flint2_molecule_verify_tls_pem
+
+    - name: Assert the full chain is the leaf followed by the intermediate, byte for byte
+      ansible.builtin.assert:
+        that:
+          - >-
+            (flint2_molecule_verify_tls_pem.results[0].content | b64decode)
+            ~ (flint2_molecule_verify_tls_pem.results[1].content | b64decode)
+            == (flint2_molecule_verify_tls_pem.results[2].content | b64decode)
+        fail_msg: fullchain.crt is not server.crt + intermediate.crt
