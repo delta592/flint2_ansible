@@ -1,71 +1,12 @@
 ---
+# Run the role through its main entry point, like playbooks/site.yml, so converge
+# exercises tasks/main.yml (tag and when wiring), argument_specs validation, UCI
+# apply + handlers, and the role's own verify.yml. Areas that need GL.iNet-only
+# files (nginx hardening, live radio/bridge checks) are disabled in molecule_vars.yml.
 - name: Converge
   hosts: all
   gather_facts: false
   vars_files:
     - molecule_vars.yml
-  tasks:
-    - name: Manage Flint 2 packages
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: packages.yml
-
-    - name: Configure Flint 2 system settings
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: system.yml
-
-    - name: Configure Flint 2 NTP time synchronization
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: ntp.yml
-
-    - name: Configure Flint 2 LAN bridge multicast
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: network.yml
-
-    - name: Configure Flint 2 wireless networks
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: wireless.yml
-
-    - name: Configure Flint 2 firmware upgrade settings
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: upgrade.yml
-
-    - name: Install and configure usteer active AP-side steering
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: usteer.yml
-
-    - name: Install Flint 2 TLS certificates
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: tls.yml
-
-    - name: Ensure LuCI is installed and configured
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: luci.yml
-
-    - name: Configure Flint 2 local access control
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: access_control.yml
-
-    - name: Install and configure LuCI Statistics thermal monitoring
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: statistics.yml
-
-    - name: Configure Flint 2 SSH access
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: ssh.yml
-
-    - name: Commit all UCI changes and restart affected services
-      ansible.builtin.import_role:
-        name: flint2
-        tasks_from: apply.yml
+  roles:
+    - role: flint2
