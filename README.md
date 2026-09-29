@@ -263,7 +263,7 @@ roles/flint2/               # Main configuration role
 tests/
   molecule/                 # Shared Molecule create/destroy playbooks
   test_project.py           # pytest project sanity checks
-  test_role_variables.py    # defaults ↔ argument_specs parity; no inventory duplicates
+  test_role_variables.py    # defaults ↔ argument_specs parity; no inventory duplicates or redundant fallbacks
 
 docs/
   Flint_2_AP_Installation_Guide_2026-08-01.md
