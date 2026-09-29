@@ -3,10 +3,10 @@ ansible_host: wapap1003
 
 # Prefer ssh-audit OpenSSH 10.x suite; keep curve25519/hmac-sha2-256 as fallback
 # so the first make ssh can still reach a not-yet-upgraded listener.
-# ControlMaster=no avoids a mux holding an old Dropbear session across cutover.
+# SSH multiplexing stays on (ansible.cfg ssh_args): every wait_for_connection after
+# the Dropbear cutover, an sshd reload, or a Wi-Fi reload stops the mux before it
+# reconnects, so no task runs over an old Dropbear session.
 ansible_ssh_extra_args: >-
-  -o ControlMaster=no
-  -o ControlPath=none
   -o KexAlgorithms=mlkem768x25519-sha256,sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
   -o HostKeyAlgorithms=ssh-ed25519
   -o Ciphers=chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-gcm@openssh.com,aes128-ctr

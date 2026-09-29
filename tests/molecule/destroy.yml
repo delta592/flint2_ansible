@@ -14,8 +14,9 @@
         state: absent
         force_kill: true
 
-    - name: Remove OpenWrt 25.12.5 rootfs test image
+    - name: Remove OpenWrt 25.12.5 rootfs test images
       when: lookup('env', 'MOLECULE_OPENWRT_PRUNE_IMAGE') | default('false', true) | bool
       community.docker.docker_image:
-        name: "{{ _openwrt.rootfs.local_image }}"
+        name: "{{ _openwrt.rootfs.local_image }}-{{ item }}"
         state: absent
+      loop: "{{ _openwrt.rootfs.arches | list }}"

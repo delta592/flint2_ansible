@@ -15,6 +15,25 @@
       delay: 5
       changed_when: false
 
+    # In an unprivileged container netifd blocks forever on a netlink reply, so
+    # every netifd ubus call (the network.sh helpers in the chronyd, usteer, and
+    # Dropbear init scripts) waits out a 30 s ubus timeout: about 7 minutes per
+    # molecule test. Removing the procd service (no ifdown hooks, no respawn) makes
+    # those calls fail fast. Nothing here needs netifd: the bridge handler skips
+    # when sysfs is absent, and the rootfs has no /sbin/wifi.
+    - name: Stop netifd, which hangs in an unprivileged container
+      community.openwrt.command:
+        cmd: |
+          ubus call service delete '{"name":"network"}' || true
+          i=0
+          while pidof netifd >/dev/null && [ "$i" -lt 30 ]; do
+            sleep 1
+            i=$((i + 1))
+          done
+          ! pidof netifd >/dev/null
+        uses_shell: true
+      changed_when: false
+
     - name: Ensure wireless UCI config exists in the container rootfs
       community.openwrt.command:
         cmd: test -f /etc/config/wireless || touch /etc/config/wireless

@@ -27,6 +27,13 @@ provisioner:
   env:
     ANSIBLE_COLLECTIONS_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../../collections"
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    # Converge and idempotence skip the role's own verify include (tasks/main.yml,
+    # tagged verify); verify.yml runs those same checks once, right after --check.
+    # Its include_role is untagged, so this skip does not touch it.
+    ANSIBLE_SKIP_TAGS: verify
+    # macOS: the docker_api connection's Docker SDK otherwise crashes forked
+    # workers ("A worker was found in a dead state"). No effect on Linux.
+    OBJC_DISABLE_INITIALIZE_FORK_SAFETY: "YES"
   config_options:
     defaults:
       collections_path: "${MOLECULE_PROJECT_DIRECTORY}/../../collections"
