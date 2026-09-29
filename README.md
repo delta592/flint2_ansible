@@ -140,7 +140,7 @@ inventory/group_vars/flint2/
   vault.yml.example
 ```
 
-The main wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). Guest and IoT SSIDs (kept disabled) use `.secrets/guest_passphrases.env` via `flint2_wireless_guest_key_file` with `sae-mixed` encryption so the GL.iNet factory `goodlife` / `psk2` defaults are replaced. Both secret files should contain the passphrase alone on one line. The same inventory enables `ieee80211k` / `bss_transition` and installs **usteer** for active AP-side band steering (`make usteer`).
+The main wireless passphrase is read from `.secrets/ARGUS_wifi_password.env` via `flint2_wireless_key_file` (a role default, looked up by `flint2_wireless.key` in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml)). Guest and IoT SSIDs (kept disabled) use `.secrets/guest_passphrases.env` via `flint2_wireless_guest_key_file` with `sae-mixed` encryption so the GL.iNet factory `goodlife` / `psk2` defaults are replaced. Both secret files should contain the passphrase alone on one line. The inventory enables `ieee80211k` / `bss_transition`, and the role defaults install **usteer** for active AP-side band steering (`make usteer`).
 
 ### Bootstrap SSH (first run after reset)
 
@@ -186,7 +186,7 @@ Bootstrap vars prefer password first, then publickey, so the first connection ca
 | --- | --- | --- |
 | `router` | `flint2` → `openwrt` | `ansible_host: wapap1003` in [`inventory/host_vars/router.yml`](inventory/host_vars/router.yml) |
 
-Adjust host name, FQDN, management IP, wireless SSID, and certificate file names in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml).
+Adjust host name, FQDN, management IP, wireless SSID, and certificate file names in [`inventory/group_vars/flint2/main.yml`](inventory/group_vars/flint2/main.yml). That file holds only host-specific values; everything else comes from [`roles/flint2/defaults/main.yml`](roles/flint2/defaults/main.yml), documented in [`meta/argument_specs.yml`](roles/flint2/meta/argument_specs.yml). Override a variable in inventory only when it must differ from its default: `make pytest` fails if group_vars repeat a role default verbatim, or if a default is missing from, or disagrees with, the argument specs.
 
 ### Role tags
 
@@ -251,16 +251,19 @@ inventory/
   hosts.yml
   group_vars/
     openwrt.yml             # OpenWrt collection defaults, SCP -O (bootstrap/Dropbear safe)
-    flint2/main.yml         # Flint 2 device and service variables
+    flint2/main.yml         # Host-specific overrides of role defaults
   host_vars/router.yml      # ansible_host and OpenSSH client algorithm args
 
 roles/flint2/               # Main configuration role
-  meta/argument_specs.yml   # Role variable validation
+  defaults/main.yml         # Default value for every role variable
+  handlers/main.yml         # Change-driven service reloads
+  meta/argument_specs.yml   # Role variable validation and documentation
   molecule/default/         # Docker-based integration tests
 
 tests/
   molecule/                 # Shared Molecule create/destroy playbooks
   test_project.py           # pytest project sanity checks
+  test_role_variables.py    # defaults ↔ argument_specs parity; no inventory duplicates
 
 docs/
   Flint_2_AP_Installation_Guide_2026-08-01.md
