@@ -379,7 +379,9 @@ argument_specs:
       flint2_tls_backup_suffix:
         type: str
         default: pre-ansible
-        description: Suffix appended to remote certificate backups.
+        description: >-
+          Suffix for the backup (<path>.<suffix>) of each installed certificate or key,
+          taken on the router just before Ansible replaces that file.
       flint2_tls_nginx_cert_path:
         type: path
         default: /etc/nginx/nginx.cer
