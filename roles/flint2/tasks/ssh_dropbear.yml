@@ -57,7 +57,7 @@
     mode: "0755"
 
 - name: Ensure Dropbear ed25519 host key exists
-  when: flint2_dropbear_keyfiles | default([]) | length > 0
+  when: flint2_dropbear_keyfiles | length > 0
   community.openwrt.command:
     cmd: |
       set -eu

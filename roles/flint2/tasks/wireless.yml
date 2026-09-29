@@ -43,14 +43,14 @@
 
 - name: Configure encryption and key on guest and IoT interfaces
   when:
-    - flint2_wireless_guest_ifaces | default([]) | length > 0
+    - flint2_wireless_guest_ifaces | length > 0
     - flint2_wireless_guest[item.1] is defined
     - item.1 != 'key' or (flint2_wireless_guest.key | default('') | length > 0)
   community.openwrt.uci:
     command: set
     key: "wireless.{{ item.0 }}.{{ item.1 }}"
     value: "{{ flint2_wireless_guest[item.1] }}"
-  loop: "{{ flint2_wireless_guest_ifaces | product(flint2_wireless_guest_option_keys | default(['encryption', 'key'])) | list }}"
+  loop: "{{ flint2_wireless_guest_ifaces | product(flint2_wireless_guest_option_keys) | list }}"
   loop_control:
     label: "{{ item.0 }}.{{ item.1 }}"
   no_log: "{{ item.1 == 'key' }}"

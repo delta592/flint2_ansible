@@ -1,8 +1,8 @@
 ---
 - name: Install Flint 2 statistics packages with apk
   when:
-    - flint2_statistics_enabled | default(true) | bool
-    - flint2_statistics_packages | default([]) | length > 0
+    - flint2_statistics_enabled | bool
+    - flint2_statistics_packages | length > 0
     - openwrt_package_manager == "apk"
   community.openwrt.apk:
     name: "{{ flint2_statistics_packages | join(',') }}"
@@ -12,8 +12,8 @@
 
 - name: Install Flint 2 statistics packages with opkg
   when:
-    - flint2_statistics_enabled | default(true) | bool
-    - flint2_statistics_packages | default([]) | length > 0
+    - flint2_statistics_enabled | bool
+    - flint2_statistics_packages | length > 0
     - openwrt_package_manager == "opkg"
   community.openwrt.opkg:
     name: "{{ flint2_statistics_packages | join(',') }}"
@@ -22,7 +22,7 @@
   notify: flint2 statistics changed
 
 - name: Configure LuCI Statistics collectd plugins
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   block:
     - name: Check for luci_statistics UCI config
       community.openwrt.stat:
@@ -42,7 +42,7 @@
         type: statistics
         name: collectd
         value:
-          Interval: "{{ flint2_statistics_interval | default(30) }}"
+          Interval: "{{ flint2_statistics_interval }}"
       notify: flint2 statistics changed
 
     - name: Enable collectd plugins
@@ -57,7 +57,7 @@
       notify: flint2 statistics changed
 
 - name: Enable collectd and luci_statistics at boot
-  when: flint2_statistics_enabled | default(true) | bool
+  when: flint2_statistics_enabled | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail

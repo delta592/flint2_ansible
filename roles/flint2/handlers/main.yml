@@ -109,10 +109,10 @@
     - not ansible_check_mode
     - flint2_wifi_reload is unreachable
   community.openwrt.wait_for_connection:
-    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
-    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
-    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
-    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"
+    delay: "{{ flint2_ssh_wait_delay }}"
+    timeout: "{{ flint2_ssh_wait_timeout }}"
+    sleep: "{{ flint2_ssh_wait_sleep }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout }}"
 
 # After the wireless reload, matching the previous restart order (wifi before usteer).
 - name: Restart usteer
@@ -123,7 +123,7 @@
 
 - name: Restart Dropbear
   listen: flint2 dropbear changed
-  when: flint2_ssh_backend | default('openssh') == 'dropbear'
+  when: flint2_ssh_backend == 'dropbear'
   community.openwrt.service:
     name: dropbear
     state: restarted
@@ -133,9 +133,9 @@
   listen: flint2 dropbear changed
   when:
     - not ansible_check_mode
-    - flint2_ssh_backend | default('openssh') == 'dropbear'
+    - flint2_ssh_backend == 'dropbear'
   community.openwrt.wait_for_connection:
-    delay: "{{ flint2_ssh_wait_delay | default(8) }}"
-    timeout: "{{ flint2_ssh_wait_timeout | default(180) }}"
-    sleep: "{{ flint2_ssh_wait_sleep | default(3) }}"
-    connect_timeout: "{{ flint2_ssh_wait_connect_timeout | default(5) }}"
+    delay: "{{ flint2_ssh_wait_delay }}"
+    timeout: "{{ flint2_ssh_wait_timeout }}"
+    sleep: "{{ flint2_ssh_wait_sleep }}"
+    connect_timeout: "{{ flint2_ssh_wait_connect_timeout }}"

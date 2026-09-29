@@ -1,7 +1,7 @@
 ---
 - name: Install bundled GL.iNet LuCI packages
   when:
-    - flint2_luci_enabled | default(true) | bool
+    - flint2_luci_enabled | bool
     - openwrt_package_manager == "apk"
   community.openwrt.command:
     cmd: |
@@ -31,7 +31,7 @@
 
 - name: Install bundled GL.iNet LuCI packages with opkg
   when:
-    - flint2_luci_enabled | default(true) | bool
+    - flint2_luci_enabled | bool
     - openwrt_package_manager == "opkg"
   community.openwrt.command:
     cmd: |
@@ -52,7 +52,7 @@
 
 - name: Install uHTTPd ucode module for LuCI
   when:
-    - flint2_luci_enabled | default(true) | bool
+    - flint2_luci_enabled | bool
     - openwrt_package_manager == "apk"
   community.openwrt.apk:
     name: uhttpd-mod-ucode
@@ -61,7 +61,7 @@
 
 - name: Install uHTTPd ucode module for LuCI with opkg
   when:
-    - flint2_luci_enabled | default(true) | bool
+    - flint2_luci_enabled | bool
     - openwrt_package_manager == "opkg"
   community.openwrt.opkg:
     name: uhttpd-mod-ucode
@@ -69,7 +69,7 @@
   notify: flint2 uhttpd changed
 
 - name: Configure uHTTPd for LuCI
-  when: flint2_luci_enabled | default(true) | bool
+  when: flint2_luci_enabled | bool
   block:
     - name: Check for LuCI ucode uHTTPd handler
       community.openwrt.stat:
@@ -133,7 +133,7 @@
       notify: flint2 uhttpd changed
 
 - name: Enable rpcd for LuCI
-  when: flint2_luci_enabled | default(true) | bool
+  when: flint2_luci_enabled | bool
   community.openwrt.command:
     cmd: /etc/init.d/rpcd enable
     uses_shell: true

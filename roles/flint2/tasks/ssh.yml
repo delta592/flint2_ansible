@@ -4,7 +4,7 @@
 # the strongest algorithms still compatible with OpenSSH 7.4+ / Dropbear 2020.79+.
 
 - name: Configure Dropbear SSH backend
-  when: flint2_ssh_backend | default('openssh') == 'dropbear'
+  when: flint2_ssh_backend == 'dropbear'
   ansible.builtin.include_tasks:
     file: ssh_dropbear.yml
     apply:
@@ -12,7 +12,7 @@
   tags: [ssh]
 
 - name: Configure OpenSSH SSH backend
-  when: flint2_ssh_backend | default('openssh') == 'openssh'
+  when: flint2_ssh_backend == 'openssh'
   ansible.builtin.include_tasks:
     file: ssh_openssh.yml
     apply:

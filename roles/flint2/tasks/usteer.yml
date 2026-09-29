@@ -1,8 +1,8 @@
 ---
 - name: Install Flint 2 usteer packages with apk
   when:
-    - flint2_usteer_enabled | default(true) | bool
-    - flint2_usteer_packages | default([]) | length > 0
+    - flint2_usteer_enabled | bool
+    - flint2_usteer_packages | length > 0
     - openwrt_package_manager == "apk"
   community.openwrt.apk:
     name: "{{ flint2_usteer_packages | join(',') }}"
@@ -14,8 +14,8 @@
 
 - name: Install Flint 2 usteer packages with opkg
   when:
-    - flint2_usteer_enabled | default(true) | bool
-    - flint2_usteer_packages | default([]) | length > 0
+    - flint2_usteer_enabled | bool
+    - flint2_usteer_packages | length > 0
     - openwrt_package_manager == "opkg"
   community.openwrt.opkg:
     name: "{{ flint2_usteer_packages | join(',') }}"
@@ -26,7 +26,7 @@
     - flint2 luci menu changed
 
 - name: Configure usteer active AP-side steering
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   vars:
     flint2_usteer_ssids: >-
       {{
@@ -70,7 +70,7 @@
       notify: flint2 usteer changed
 
 - name: Enable usteer at boot
-  when: flint2_usteer_enabled | default(true) | bool
+  when: flint2_usteer_enabled | bool
   community.openwrt.command:
     cmd: |
       set -euo pipefail

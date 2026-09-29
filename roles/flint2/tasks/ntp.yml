@@ -1,7 +1,7 @@
 ---
 # chronyd (GL.iNet 4.8.4+) when its UCI config and init script exist; otherwise sysntpd (system.ntp).
 - name: Configure NTP time servers
-  when: flint2_ntp_enabled | default(true) | bool
+  when: flint2_ntp_enabled | bool
   block:
     - name: Check for chrony UCI config
       community.openwrt.stat:
