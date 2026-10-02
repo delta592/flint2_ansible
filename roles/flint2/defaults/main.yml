@@ -6,6 +6,14 @@ flint2_clock_hourcycle: h23
 # GL.iNet UI → System → Upgrade → Automatic Update Check (upgrade.general.upgrade_enable)
 flint2_firmware_auto_update_check: "0"
 
+# GL.iNet UI → System → Scheduled Tasks → Scheduled Reboot (gl_timer.reboot).
+# Local time (system zonename); week is space-separated cron weekdays, 0 = Sunday.
+flint2_scheduled_reboot:
+  enable: "1"
+  hour: "03"
+  min: "17"
+  week: "2"
+
 flint2_network_mode: router
 flint2_lan_proto: static
 flint2_wan_device: eth1

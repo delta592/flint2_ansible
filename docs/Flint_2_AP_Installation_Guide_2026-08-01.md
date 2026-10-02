@@ -743,6 +743,7 @@ Partial targets automatically run the `always`-tagged UCI commit/apply step (for
 | `make system` | `system,always` | Hostname, 24-hour clock |
 | `make wireless` | `wireless,always` | ARGUS SSID, radio options, and usteer (usteer tag included) |
 | `make usteer` | `usteer,always` | Install/configure usteer active band steering |
+| `make scheduled-reboot` | `scheduled_reboot,always` | GL.iNet scheduled reboot, Tuesday 03:17 |
 | `make ntp` | `ntp,always` | chronyd upstream NTP |
 | `make network` | `network,always` | br-lan IGMP snooping + multicast querier (E1/E2) |
 | `make statistics` | `statistics,always` | LuCI Statistics thermal/sensors graphs |

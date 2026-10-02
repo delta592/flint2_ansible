@@ -35,6 +35,12 @@
     name: system
     state: reloaded
 
+- name: Restart GL.iNet timer cron
+  listen: flint2 gl_timer changed
+  community.openwrt.service:
+    name: gl_timer
+    state: restarted
+
 - name: Restart chronyd
   listen: flint2 chrony changed
   community.openwrt.service:

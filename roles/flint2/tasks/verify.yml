@@ -145,6 +145,54 @@
       expected '{{ flint2_firmware_auto_update_check }}'
       (GL.iNet UI → System → Upgrade → Automatic Update Check)
 
+- name: Read GL.iNet scheduled reboot settings
+  when:
+    - flint2_verify_glinet_settings | bool
+  community.openwrt.uci:
+    command: get
+    key: "gl_timer.reboot.{{ item }}"
+  loop: "{{ flint2_scheduled_reboot.keys() | list }}"
+  register: flint2_verify_scheduled_reboot
+  changed_when: false
+
+- name: Assert GL.iNet scheduled reboot settings match desired values
+  when:
+    - flint2_verify_glinet_settings | bool
+  ansible.builtin.assert:
+    that:
+      - item.result == flint2_scheduled_reboot[item.item]
+    fail_msg: >-
+      gl_timer.reboot.{{ item.item }} is '{{ item.result }}',
+      expected '{{ flint2_scheduled_reboot[item.item] }}'
+      (GL.iNet UI → System → Scheduled Tasks → Scheduled Reboot)
+  loop: "{{ flint2_verify_scheduled_reboot.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Read live GL.iNet crontab
+  when:
+    - flint2_verify_glinet_settings | bool
+    - flint2_scheduled_reboot.enable == "1"
+  community.openwrt.command:
+    cmd: cat /tmp/gl_crontabs/root
+  register: flint2_verify_gl_crontab
+  changed_when: false
+
+- name: Assert live GL.iNet crontab schedules the reboot
+  when:
+    - flint2_verify_glinet_settings | bool
+    - flint2_scheduled_reboot.enable == "1"
+  vars:
+    flint2_verify_reboot_cron_line: >-
+      {{ flint2_scheduled_reboot.min }} {{ flint2_scheduled_reboot.hour }} * *
+      {{ flint2_scheduled_reboot.week | replace(' ', ',') }} reboot
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_reboot_cron_line in flint2_verify_gl_crontab.stdout_lines
+    fail_msg: >-
+      /tmp/gl_crontabs/root has no '{{ flint2_verify_reboot_cron_line }}' line
+      (is gl_timer.global.enable '1' and gl_timer running?)
+
 - name: Read GL.iNet network mode
   when:
     - flint2_verify_glinet_settings | bool

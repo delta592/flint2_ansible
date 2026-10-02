@@ -25,6 +25,35 @@ argument_specs:
         description: >-
           GL.iNet UI → System → Upgrade → Automatic Update Check
           (upgrade.general.upgrade_enable). Use "0" to disable background firmware update checks.
+      flint2_scheduled_reboot:
+        type: dict
+        description: >-
+          GL.iNet UI → System → Scheduled Tasks → Scheduled Reboot (gl_timer.reboot).
+          Applied by /etc/init.d/gl_timer as a crond entry in the router's local time zone.
+        options:
+          enable:
+            type: str
+            default: "1"
+            choices:
+              - "0"
+              - "1"
+            description: >-
+              Use "1" to reboot on schedule. Enabling also sets gl_timer.global.enable=1;
+              disabling leaves that shared switch unchanged.
+          hour:
+            type: str
+            default: "03"
+            description: Reboot hour, 00-23 (gl_timer.reboot.hour).
+          min:
+            type: str
+            default: "17"
+            description: Reboot minute, 00-59 (gl_timer.reboot.min).
+          week:
+            type: str
+            default: "2"
+            description: >-
+              Space-separated cron weekdays, 0 = Sunday through 6 = Saturday
+              (gl_timer.reboot.week). "2" is Tuesday.
       flint2_network_mode:
         type: str
         description: Expected GL.iNet network mode in glconfig.general.mode (for example ap or router).

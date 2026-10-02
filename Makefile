@@ -207,6 +207,11 @@ check: install
 system: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags system,always
 
+## Configure the GL.iNet scheduled reboot only
+.PHONY: scheduled-reboot
+scheduled-reboot: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags scheduled_reboot,always
+
 ## Configure NTP time synchronization only
 .PHONY: ntp
 ntp: install

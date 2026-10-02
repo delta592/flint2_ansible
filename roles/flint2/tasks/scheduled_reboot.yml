@@ -1,0 +1,34 @@
+---
+# GL.iNet UI → System → Scheduled Tasks → Scheduled Reboot. /etc/init.d/gl_timer
+# renders enabled gl_timer timers into /tmp/gl_crontabs/root and runs crond on it.
+# Skip when the GL.iNet timer config is absent (Molecule containers).
+- name: Check for GL.iNet timer UCI config
+  community.openwrt.stat:
+    path: /etc/config/gl_timer
+  register: flint2_scheduled_reboot_config
+
+- name: Configure GL.iNet scheduled reboot
+  when: flint2_scheduled_reboot_config.stat.exists
+  block:
+    - name: Set GL.iNet scheduled reboot time and state
+      community.openwrt.uci:
+        command: section
+        config: gl_timer
+        type: timer
+        name: reboot
+        value:
+          enable: "{{ flint2_scheduled_reboot.enable }}"
+          hour: "{{ flint2_scheduled_reboot.hour }}"
+          min: "{{ flint2_scheduled_reboot.min }}"
+          week: "{{ flint2_scheduled_reboot.week }}"
+      notify: flint2 gl_timer changed
+
+    # gl_timer writes no crontab at all while the global switch is off. Leave it
+    # alone when the reboot is disabled, since other GL.iNet timers share it.
+    - name: Enable GL.iNet scheduled tasks
+      when: flint2_scheduled_reboot.enable == "1"
+      community.openwrt.uci:
+        command: set
+        key: gl_timer.global.enable
+        value: "1"
+      notify: flint2 gl_timer changed

@@ -8,6 +8,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 
 - **System** — hostname, LuCI 24-hour clock (`clock_hourcycle=h23`), and AP-mode settings validated against live device state
 - **Firmware** — GL.iNet Automatic Update Check disabled (`upgrade.general.upgrade_enable=0`)
+- **Scheduled reboot** — GL.iNet scheduled reboot every Tuesday at 03:17 local time (`gl_timer.reboot`)
 - **Wireless** — 2.4 GHz and 5 GHz SSIDs via UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1` on OP25)
 - **LuCI** — installs bundled OP25 LuCI APKs, `uhttpd-mod-ucode`, and uHTTPd handler configuration
 - **Statistics** — LuCI Statistics (`collectd`) with thermal and sensors graphs under **Statistics → Graphs**
@@ -198,6 +199,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `packages` | `packages.yml` | Optional package install/remove |
 | `system` | `system.yml` | Hostname, LuCI 24-hour clock |
 | `upgrade` | `upgrade.yml` | GL.iNet Automatic Update Check (`upgrade.general.upgrade_enable`) |
+| `scheduled_reboot` | `scheduled_reboot.yml` | GL.iNet scheduled reboot (`gl_timer.reboot`, Tuesday 03:17) |
 | `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
 | `network` | `network.yml` | `br-lan` IGMP snooping + multicast querier (E1/E2) |
 | `wireless` | `wireless.yml`, `wireless_iface_options.yml` | 2.4/5 GHz wireless configuration; per-radio wifi-iface overrides (`iface_options`) |

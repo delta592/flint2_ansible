@@ -20,6 +20,13 @@
       tags: [upgrade]
   tags: [upgrade]
 
+- name: Configure Flint 2 scheduled reboot
+  ansible.builtin.include_tasks:
+    file: scheduled_reboot.yml
+    apply:
+      tags: [scheduled_reboot]
+  tags: [scheduled_reboot]
+
 - name: Configure Flint 2 NTP time synchronization
   ansible.builtin.include_tasks:
     file: ntp.yml
