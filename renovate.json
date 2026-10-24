@@ -67,6 +67,13 @@
                 "ansible"
             ],
             "dependencyDashboardApproval": true
+        },
+        {
+            "description": "Keep requires-python on 3.14 (ansible-core does not yet support Python 3.15)",
+            "matchDepTypes": [
+                "requires-python"
+            ],
+            "enabled": false
         }
     ]
 }
