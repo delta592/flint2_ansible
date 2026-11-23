@@ -61,6 +61,14 @@ def test_playbooks_are_present() -> None:
     names = [path.name for path in playbooks]
     assert "site.yml" in names
     assert "ping.yml" in names
+    assert "enable_dropbear_rpc.yml" in names
+    assert "post_upgrade.yml" in names
+
+
+def test_post_upgrade_script_exists() -> None:
+    script = ROOT / "scripts/glinet_enable_dropbear.py"
+    assert script.is_file(), "Missing scripts/glinet_enable_dropbear.py"
+    assert "local-access" in script.read_text(encoding="utf-8")
 
 
 def test_makefile_tags_exist_in_role_or_playbooks() -> None:

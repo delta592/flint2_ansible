@@ -63,6 +63,8 @@ description = "Validate Ansible playbook syntax"
 commands = [
     ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/site.yml"],
     ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/ping.yml"],
+    ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/enable_dropbear_rpc.yml"],
+    ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/post_upgrade.yml"],
 ]
 
 [tool.tox.env.molecule]

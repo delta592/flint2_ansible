@@ -1,0 +1,14 @@
+---
+# Post-firmware-upgrade recovery:
+# 1) Enable Dropbear + seed authorized_keys over HTTPS (no SSH needed)
+# 2) Re-apply OpenSSH / site configuration over the restored SSH session
+#
+# Prefer: make post-upgrade
+# which also runs known-hosts-reset and a final connectivity ping.
+- name: Import Dropbear HTTPS enable playbook
+  ansible.builtin.import_playbook: enable_dropbear_rpc.yml
+  tags: [post_upgrade, enable_dropbear]
+
+- name: Import Flint 2 site playbook after SSH recovery
+  ansible.builtin.import_playbook: site.yml
+  tags: [post_upgrade]

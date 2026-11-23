@@ -133,6 +133,7 @@ Sensitive files live outside the repository and are listed in [`.gitignore`](.gi
 
 .secrets/                      # Private keys and passphrases (gitignored)
   wapap1003.key
+  real_root_password           # GL.iNet / LuCI admin password (post-upgrade HTTPS recovery)
   ARGUS_wifi_password.env      # Main Wi-Fi passphrase (single line, no KEY=value)
   guest_passphrases.env        # Shared guest/IoT Wi-Fi passphrase (single line)
 
@@ -161,6 +162,8 @@ cp inventory/bootstrap.yml.example .secrets/bootstrap.yml
 # Edit ansible_ssh_pass to the current temporary root password
 ```
 
+Use the example’s `ansible_ssh_common_args` as-is (`PreferredAuthentications=password,publickey`). Do **not** set `PubkeyAuthentication=no` — after OpenSSH cutover, password auth is disabled and the reconnect wait must be allowed to use your key.
+
 3. Run the playbook with password auth (installs OpenSSH + keys, then disables password login):
 
 ```bash
@@ -179,6 +182,33 @@ rm .secrets/bootstrap.yml
 ```
 
 Bootstrap vars prefer password first, then publickey, so the first connection can use the temporary root password; after keys are installed and OpenSSH is cut over, later tasks reconnect with your Ed25519 key.
+
+### Post-upgrade SSH recovery (no LuCI checkbox)
+
+A firmware upgrade that **keeps settings** often leaves `dropbear.main.enable=0` (from this role) while wiping the OpenSSH packages. LuCI still shows Dropbear unchecked, and nothing listens on port 22 — but the GL.iNet admin UI and LuCI HTTPS remain up.
+
+`make post-upgrade` recovers without manually enabling Dropbear:
+
+1. `make known-hosts-reset`
+2. GL.iNet `/rpc` `local-access.set_config` enables Dropbear (HTTPS to the **management IP**; hostname SNI may 403)
+3. LuCI ubus writes `.env` pubkeys to `/etc/dropbear/authorized_keys` (works even when Dropbear password auth is still off)
+4. Re-applies OpenSSH via `playbooks/site.yml` (default `--tags ssh,always`)
+5. `make ping`
+
+Requirements:
+
+| File | Purpose |
+| --- | --- |
+| `.secrets/real_root_password` | GL.iNet / LuCI root admin password (one line) |
+| `.env/id_ed25519.pub`, `.env/id_ed25519_v002.pub` | Keys seeded onto Dropbear before SSH returns |
+
+```bash
+make post-upgrade                 # HTTPS Dropbear enable + OpenSSH (ssh tag) + ping
+make post-upgrade SITE_TAGS=      # same, but full site playbook after SSH is back
+make enable-dropbear-rpc          # only the HTTPS Dropbear enable step
+```
+
+If port 22 already answers, the enable step is skipped. Password-auth bootstrap (`make site-bootstrap`) remains available for factory-reset flows where LuCI/ubus is not usable yet.
 
 ## Configuration
 
@@ -249,6 +279,11 @@ Makefile                    # install, lint, test, site, tag-specific targets
 playbooks/
   site.yml                  # Full Flint 2 configuration
   ping.yml                  # SSH connectivity test
+  enable_dropbear_rpc.yml   # Post-upgrade Dropbear enable via GL.iNet / LuCI HTTPS
+  post_upgrade.yml          # enable_dropbear_rpc + site (see make post-upgrade)
+
+scripts/
+  glinet_enable_dropbear.py # GL /rpc + LuCI ubus helper used by enable_dropbear_rpc
 
 inventory/
   hosts.yml

@@ -1,0 +1,127 @@
+---
+# Temporary Dropbear foothold after a firmware upgrade (no SSH required).
+# Uses GL.iNet /rpc (local-access.set_config) plus LuCI ubus file.write for
+# /etc/dropbear/authorized_keys. Prefer the management IP for /rpc — nginx may
+# 403 requests that use the hostname SNI.
+- name: Enable Dropbear via GL.iNet RPC and LuCI ubus
+  hosts: router
+  gather_facts: false
+  tags: [post_upgrade, enable_dropbear]
+  vars:
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    # Role defaults are not loaded unless the flint2 role runs; mirror paths here.
+    flint2_env_dir: "{{ inventory_dir }}/../.env"
+    flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
+    flint2_glinet_admin_password_filename: real_root_password
+    flint2_glinet_admin_password_file: >-
+      {{ flint2_secrets_dir }}/{{ flint2_glinet_admin_password_filename }}
+    flint2_post_upgrade_luci_https_port: 8443
+    flint2_post_upgrade_ssh_port: 22
+    flint2_glinet_rpc_url: "https://{{ flint2_management_ip }}/rpc"
+    flint2_luci_ubus_url: >-
+      https://{{ flint2_management_ip }}:{{ flint2_post_upgrade_luci_https_port }}/ubus
+    flint2_post_upgrade_wait_timeout: 120
+    flint2_post_upgrade_script: "{{ playbook_dir }}/../scripts/glinet_enable_dropbear.py"
+    flint2_post_upgrade_authorized_key_files:
+      - "{{ flint2_env_dir }}/id_ed25519.pub"
+      - "{{ flint2_env_dir }}/id_ed25519_v002.pub"
+  tasks:
+    - name: Require management IP for GL.iNet RPC
+      ansible.builtin.assert:
+        that:
+          - flint2_management_ip is defined
+          - flint2_management_ip | length > 0
+        fail_msg: Set flint2_management_ip in inventory/group_vars/flint2/main.yml
+
+    - name: Require GL.iNet admin password file
+      ansible.builtin.stat:
+        path: "{{ flint2_glinet_admin_password_file }}"
+      register: flint2_glinet_password_stat
+
+    - name: Assert GL.iNet admin password file exists
+      ansible.builtin.assert:
+        that:
+          - flint2_glinet_password_stat.stat.exists
+          - flint2_glinet_password_stat.stat.isreg
+        fail_msg: >-
+          Missing {{ flint2_glinet_admin_password_file }}.
+          Put the GL.iNet / LuCI root password on one line in that file.
+
+    - name: Require SSH public key files for Dropbear authorized_keys
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ flint2_post_upgrade_authorized_key_files }}"
+      register: flint2_post_upgrade_key_stats
+
+    - name: Assert SSH public key files exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+        fail_msg: "Missing SSH public key file: {{ item.item }}"
+      loop: "{{ flint2_post_upgrade_key_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Skip Dropbear enable when SSH already answers on the management IP
+      ansible.builtin.wait_for:
+        host: "{{ flint2_management_ip }}"
+        port: "{{ flint2_post_upgrade_ssh_port | int }}"
+        timeout: 3
+        state: started
+      register: flint2_post_upgrade_ssh_probe
+      failed_when: false
+      changed_when: false
+
+    - name: Start Dropbear enable command argv
+      when: flint2_post_upgrade_ssh_probe.state is not defined
+      ansible.builtin.set_fact:
+        flint2_enable_dropbear_argv:
+          - "{{ ansible_playbook_python }}"
+          - "{{ flint2_post_upgrade_script }}"
+          - --rpc-url
+          - "{{ flint2_glinet_rpc_url }}"
+          - --ubus-url
+          - "{{ flint2_luci_ubus_url }}"
+          - --password-file
+          - "{{ flint2_glinet_admin_password_file }}"
+
+    - name: Append authorized key files to Dropbear enable argv
+      when: flint2_post_upgrade_ssh_probe.state is not defined
+      ansible.builtin.set_fact:
+        flint2_enable_dropbear_argv: "{{ flint2_enable_dropbear_argv + ['--authorized-key-file', item] }}"
+      loop: "{{ flint2_post_upgrade_authorized_key_files }}"
+
+    - name: Enable Dropbear and seed authorized_keys over HTTPS
+      when: flint2_post_upgrade_ssh_probe.state is not defined
+      ansible.builtin.command:
+        argv: "{{ flint2_enable_dropbear_argv }}"
+      register: flint2_enable_dropbear_rpc
+      changed_when: >-
+        ('"dropbear_enable_changed": true' in (flint2_enable_dropbear_rpc.stdout | default('')))
+        or ('"authorized_keys_changed": true' in (flint2_enable_dropbear_rpc.stdout | default('')))
+
+    - name: Show Dropbear enable summary
+      when:
+        - flint2_enable_dropbear_rpc is defined
+        - flint2_enable_dropbear_rpc.stdout is defined
+        - flint2_enable_dropbear_rpc.stdout | length > 0
+      ansible.builtin.debug:
+        msg: "{{ flint2_enable_dropbear_rpc.stdout | from_json }}"
+
+    - name: Wait until SSH listens after Dropbear enable
+      when: flint2_post_upgrade_ssh_probe.state is not defined
+      ansible.builtin.wait_for:
+        host: "{{ flint2_management_ip }}"
+        port: "{{ flint2_post_upgrade_ssh_port | int }}"
+        timeout: "{{ flint2_post_upgrade_wait_timeout | int }}"
+        state: started
+
+    - name: Report SSH already reachable
+      when: flint2_post_upgrade_ssh_probe.state is defined
+      ansible.builtin.debug:
+        msg: >-
+          SSH already accepts connections on
+          {{ flint2_management_ip }}:{{ flint2_post_upgrade_ssh_port }};
+          skipped GL.iNet Dropbear enable.
