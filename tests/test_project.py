@@ -61,6 +61,53 @@ def test_playbooks_are_present() -> None:
     names = [path.name for path in playbooks]
     assert "site.yml" in names
     assert "ping.yml" in names
+    assert "enable_dropbear_rpc.yml" in names
+    assert "post_upgrade.yml" in names
+
+
+def test_post_upgrade_script_exists() -> None:
+    script = ROOT / "scripts/glinet_enable_dropbear.py"
+    assert script.is_file(), "Missing scripts/glinet_enable_dropbear.py"
+    assert "local-access" in script.read_text(encoding="utf-8")
+
+
+def test_makefile_post_upgrade_targets() -> None:
+    text = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert re.search(r"^enable-dropbear-rpc:", text, re.MULTILINE)
+    assert re.search(r"^post-upgrade:", text, re.MULTILINE)
+    assert "SITE_TAGS ?= ssh,always" in text
+    assert "playbooks/enable_dropbear_rpc.yml" in text
+    # Default SITE_TAGS must resolve to tags declared on the flint2 role / playbooks.
+    declared = _declared_tags()
+    unknown = sorted({"ssh", "always"} - declared)
+    assert not unknown, f"SITE_TAGS default references undeclared tags: {unknown}"
+
+
+def test_post_upgrade_playbook_imports_enable_and_site() -> None:
+    docs = list(yaml.safe_load_all((ROOT / "playbooks/post_upgrade.yml").read_text(encoding="utf-8")))
+    # import_playbook documents are a YAML sequence of mapping nodes.
+    plays = docs[0] if docs else []
+    assert isinstance(plays, list)
+    imports = [
+        item.get("ansible.builtin.import_playbook") or item.get("import_playbook")
+        for item in plays
+        if isinstance(item, dict)
+    ]
+    assert "enable_dropbear_rpc.yml" in imports
+    assert "site.yml" in imports
+
+
+def test_enable_dropbear_rpc_playbook_uses_helper_script() -> None:
+    plays = yaml.safe_load((ROOT / "playbooks/enable_dropbear_rpc.yml").read_text(encoding="utf-8"))
+    assert isinstance(plays, list) and plays
+    play = plays[0]
+    vars_ = play.get("vars") or {}
+    assert "glinet_enable_dropbear.py" in str(vars_.get("flint2_post_upgrade_script", ""))
+    assert vars_.get("flint2_glinet_admin_password_filename") == "real_root_password"
+    assert play.get("vars", {}).get("ansible_connection") == "local"
+    task_names = {task.get("name") for task in _tasks(play.get("tasks"))}
+    assert "Enable Dropbear and seed authorized_keys over HTTPS" in task_names
+    assert "Skip Dropbear enable when SSH already answers on the management IP" in task_names
 
 
 def test_makefile_tags_exist_in_role_or_playbooks() -> None:

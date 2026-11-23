@@ -729,6 +729,17 @@ rm .secrets/bootstrap.yml
 
 See the [README](../README.md#bootstrap-ssh-first-run-after-reset) for details.
 
+### After a firmware upgrade (Dropbear left disabled)
+
+If settings were kept, Dropbear often stays disabled while OpenSSH packages are gone. With LuCI / GL.iNet HTTPS still up, recover without the LuCI checkbox:
+
+```bash
+# Needs .secrets/real_root_password and .env/*.pub
+make post-upgrade
+```
+
+See the [README](../README.md#post-upgrade-ssh-recovery-no-luci-checkbox) for details.
+
 ### Routine apply and verify
 
 ```bash

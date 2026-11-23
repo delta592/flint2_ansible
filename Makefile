@@ -82,8 +82,10 @@ lint: setup
 syntax: setup install
 	$(UV) run ansible-playbook --syntax-check playbooks/site.yml
 	$(UV) run ansible-playbook --syntax-check playbooks/ping.yml
+	$(UV) run ansible-playbook --syntax-check playbooks/enable_dropbear_rpc.yml
+	$(UV) run ansible-playbook --syntax-check playbooks/post_upgrade.yml
 
-## Run pytest project and role-variable tests
+## Run pytest (project tests, script unit tests, scripts/ coverage)
 .PHONY: pytest
 pytest: setup
 	$(UV) run pytest
@@ -171,6 +173,22 @@ known-hosts-reset:
 	-ssh-keygen -R wapap1003 2>/dev/null
 	-ssh-keygen -R wapap1003.federation.lcars 2>/dev/null
 	-ssh-keygen -R 192.168.0.247 2>/dev/null
+
+## Enable Dropbear over GL.iNet / LuCI HTTPS (no SSH required)
+.PHONY: enable-dropbear-rpc
+enable-dropbear-rpc: install
+	$(UV) run ansible-playbook playbooks/enable_dropbear_rpc.yml
+
+# After firmware upgrade: restore Dropbear via HTTPS, re-apply OpenSSH (default), ping.
+# Full site re-apply: make post-upgrade SITE_TAGS=
+SITE_TAGS ?= ssh,always
+
+## Recover SSH after firmware upgrade (HTTPS Dropbear enable, then site tags)
+.PHONY: post-upgrade
+post-upgrade: known-hosts-reset install
+	$(UV) run ansible-playbook playbooks/enable_dropbear_rpc.yml
+	$(UV) run ansible-playbook playbooks/site.yml $(if $(SITE_TAGS),--tags $(SITE_TAGS),)
+	$(UV) run ansible-playbook playbooks/ping.yml
 
 ## Test SSH connectivity using bootstrap password auth (.secrets/bootstrap.yml)
 .PHONY: ping-bootstrap

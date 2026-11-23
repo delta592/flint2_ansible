@@ -17,6 +17,7 @@ dev = [
     "molecule==26.11.0",
     "pre-commit==4.7.0",
     "pytest==9.2.0",
+    "pytest-cov==7.1.0",
     "requests==2.34.2",
     "tox==4.67.13",
     "tox-ansible==26.11.0",
@@ -25,7 +26,26 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--strict-markers --tb=short"
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "--cov=scripts",
+    "--cov-report=term-missing",
+    "--cov-fail-under=90",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["scripts"]
+omit = ["scripts/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
 
 [tool.tox]
 requires = ["tox>=4.2", "tox-ansible"]
@@ -63,6 +83,8 @@ description = "Validate Ansible playbook syntax"
 commands = [
     ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/site.yml"],
     ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/ping.yml"],
+    ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/enable_dropbear_rpc.yml"],
+    ["uv", "run", "ansible-playbook", "--syntax-check", "playbooks/post_upgrade.yml"],
 ]
 
 [tool.tox.env.molecule]
@@ -73,7 +95,7 @@ commands = [
 change_dir = "roles/flint2"
 
 [tool.tox.env.pytest]
-description = "Run pytest project and role-variable tests"
+description = "Run pytest project, script unit tests, and coverage"
 commands = [
     ["uv", "run", "pytest"],
 ]
