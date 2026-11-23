@@ -85,7 +85,7 @@ syntax: setup install
 	$(UV) run ansible-playbook --syntax-check playbooks/enable_dropbear_rpc.yml
 	$(UV) run ansible-playbook --syntax-check playbooks/post_upgrade.yml
 
-## Run pytest project and role-variable tests
+## Run pytest (project tests, script unit tests, scripts/ coverage)
 .PHONY: pytest
 pytest: setup
 	$(UV) run pytest

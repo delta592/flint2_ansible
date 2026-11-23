@@ -81,7 +81,7 @@ Common validation targets:
 | `make lint` | ansible-lint and yamllint |
 | `make syntax` | `ansible-playbook --syntax-check` |
 | `make check` | Dry-run site playbook with diffs |
-| `make pytest` | Project and role-variable parity tests (pytest) |
+| `make pytest` | Project tests, `scripts/` unit tests, and coverage (`--cov-fail-under=90`) |
 | `make molecule` | Molecule role integration tests (Docker/Colima) |
 | `make colima-start` | Start Colima for Molecule tests |
 | `make secrets` | Gitleaks secret scan |
@@ -300,7 +300,8 @@ roles/flint2/               # Main configuration role
 
 tests/
   molecule/                 # Shared Molecule create/destroy playbooks
-  test_project.py           # required files, Makefile --tags declared, role templates exist
+  test_project.py           # required files, Makefile --tags / post-upgrade targets, role templates exist
+  test_glinet_enable_dropbear.py  # unit tests for scripts/glinet_enable_dropbear.py
   test_role_variables.py    # defaults ↔ argument_specs parity; no inventory duplicates or redundant fallbacks
 
 docs/
