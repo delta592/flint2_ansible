@@ -348,6 +348,30 @@
       oui-httpd.main.session_timeout is '{{ flint2_verify_admin_session_timeout.result }}',
       expected '{{ flint2_access_control.admin.session_timeout_minutes | int * 60 }}'
 
+- name: Read GL.iNet admin panel allowed hosts
+  when:
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
+    - flint2_access_control.admin.allowed_hosts | length > 0
+  community.openwrt.uci:
+    command: get
+    key: oui-httpd.main.allowed_host
+  register: flint2_verify_admin_allowed_hosts
+  changed_when: false
+
+- name: Assert GL.iNet admin panel allowed hosts match desired values
+  when:
+    - flint2_access_control_enabled | bool
+    - flint2_verify_glinet_settings | bool
+    - flint2_access_control.admin.allowed_hosts | length > 0
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_admin_allowed_hosts.result_list | default([]) | list | sort
+        == (flint2_access_control.admin.allowed_hosts | list | sort)
+    fail_msg: >-
+      oui-httpd.main.allowed_host is {{ flint2_verify_admin_allowed_hosts.result_list | default([]) }},
+      expected {{ flint2_access_control.admin.allowed_hosts }}
+
 - name: Read GL.iNet admin panel nginx listen ports
   when:
     - flint2_access_control_enabled | bool

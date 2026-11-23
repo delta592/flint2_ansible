@@ -47,6 +47,22 @@
       loop_control:
         label: "{{ item.item }}"
 
+    - name: Read GL.iNet admin panel allowed hosts
+      community.openwrt.uci:
+        command: get
+        key: oui-httpd.main.allowed_host
+      register: flint2_molecule_verify_allowed_hosts
+      changed_when: false
+
+    - name: Assert GL.iNet admin panel allowed hosts include the Molecule FQDN
+      ansible.builtin.assert:
+        that:
+          - flint2_molecule_verify_allowed_hosts.result_list | default([]) | list | sort
+            == ([flint2_fqdn] | sort)
+        fail_msg: >-
+          oui-httpd.main.allowed_host is {{ flint2_molecule_verify_allowed_hosts.result_list | default([]) }},
+          expected ['{{ flint2_fqdn }}']
+
     # Expected ports are the role defaults for flint2_access_control.luci.
     - name: Read uHTTPd options managed for LuCI
       community.openwrt.uci:

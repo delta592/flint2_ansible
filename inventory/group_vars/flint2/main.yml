@@ -10,8 +10,8 @@
 # - GL.iNet firmware upgrade via System → Upgrade
 # - LuCI configuration backup before major changes
 #
-# Live device discovery (2026-08-10, OP25 firmware after factory reset):
-# - GL.iNet firmware 4.9.1-op25 on OpenWrt 25.12.5 (apk)
+# Live device discovery (2026-08-10 OP25 factory reset; now on 4.11.1-op25):
+# - GL.iNet firmware 4.11.1-op25 on OpenWrt 25.12.6 (apk)
 # - AP mode: glconfig.general.mode=ap, LAN proto=dhcp, WAN uplink=eth1
 # - Wireless uses mac80211 devices radio0 (2g) / radio1 (5g)
 # - Main SSID ifaces: default_radio0 / default_radio1 (guest/iot ifaces exist but are disabled)
@@ -25,8 +25,8 @@
 openwrt_device_model: glinet,gl-mt6000
 openwrt_device_name: Flint 2
 
-flint2_glinet_firmware_version: "4.9.1-op25"
-flint2_openwrt_release: "25.12.5"
+flint2_glinet_firmware_version: "4.11.1-op25"
+flint2_openwrt_release: "25.12.6"
 flint2_network_mode: ap
 flint2_lan_proto: dhcp
 flint2_br_lan_mac: "94:83:c4:e3:f4:31"

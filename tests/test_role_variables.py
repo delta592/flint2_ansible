@@ -74,3 +74,22 @@ def test_role_code_does_not_guard_variables_that_have_defaults() -> None:
         if match.group(1) in defaults
     )
     assert not redundant, f"default()/is defined on variables that always have a role default: {redundant}"
+
+
+def test_access_control_allowed_hosts_default_uses_fqdn() -> None:
+    """OP25 4.11+ allowlist defaults to flint2_fqdn so inventory FQDNs are authorized automatically."""
+    allowed = _defaults()["flint2_access_control"]["admin"]["allowed_hosts"]
+    assert isinstance(allowed, str)
+    assert "flint2_fqdn" in allowed
+    assert "is defined" in allowed
+
+
+def test_access_control_allowed_hosts_documented_in_argument_specs() -> None:
+    admin = _spec_options()["flint2_access_control"]["options"]["admin"]["options"]
+    assert "allowed_hosts" in admin
+    assert admin["allowed_hosts"]["type"] == "list"
+    assert admin["allowed_hosts"]["elements"] == "str"
+    assert "oui-httpd.main.allowed_host" in admin["allowed_hosts"]["description"]
+
+    fqdn = _spec_options()["flint2_fqdn"]["description"]
+    assert "allowed_host" in fqdn

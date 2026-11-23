@@ -88,17 +88,19 @@
     name: uhttpd
     state: restarted
 
+# luci-app-statistics is UCI/config only on many OpenWrt builds; there is often
+# no /etc/init.d/luci_statistics. Skip when absent (same pattern as nginx).
 - name: Restart LuCI Statistics
   listen: flint2 statistics changed
-  community.openwrt.service:
-    name: luci_statistics
-    state: restarted
+  community.openwrt.command:
+    cmd: /etc/init.d/luci_statistics restart
+    removes: /etc/init.d/luci_statistics
 
 - name: Restart collectd
   listen: flint2 statistics changed
-  community.openwrt.service:
-    name: collectd
-    state: restarted
+  community.openwrt.command:
+    cmd: /etc/init.d/collectd restart
+    removes: /etc/init.d/collectd
 
 - name: Reload wireless
   listen: flint2 wifi changed
@@ -121,11 +123,12 @@
     connect_timeout: "{{ flint2_ssh_wait_connect_timeout }}"
 
 # After the wireless reload, matching the previous restart order (wifi before usteer).
+# Skip when absent (check mode / pre-install / packages wiped by firmware upgrade).
 - name: Restart usteer
   listen: flint2 usteer changed
-  community.openwrt.service:
-    name: usteer
-    state: restarted
+  community.openwrt.command:
+    cmd: /etc/init.d/usteer restart
+    removes: /etc/init.d/usteer
 
 - name: Restart Dropbear
   listen: flint2 dropbear changed

@@ -133,3 +133,64 @@ def test_role_templates_exist() -> None:
     assert sources, "No literal template sources found in role tasks"
     missing = sorted(src for src in sources if not (ROLE / "templates" / src).is_file())
     assert not missing, f"Role tasks reference missing templates: {missing}"
+
+
+def test_optional_service_handlers_skip_missing_init_scripts() -> None:
+    """Optional packages may be absent in check mode or after a firmware wipe."""
+    handlers = yaml.safe_load((ROLE / "handlers/main.yml").read_text())
+    by_name = {handler.get("name"): handler for handler in handlers}
+    for name, listen, init_script in (
+        ("Restart LuCI Statistics", "flint2 statistics changed", "/etc/init.d/luci_statistics"),
+        ("Restart collectd", "flint2 statistics changed", "/etc/init.d/collectd"),
+        ("Restart usteer", "flint2 usteer changed", "/etc/init.d/usteer"),
+    ):
+        handler = by_name[name]
+        assert handler["listen"] == listen
+        command = handler["community.openwrt.command"]
+        assert command["cmd"] == f"{init_script} restart"
+        assert command["removes"] == init_script
+
+
+def test_access_control_sets_oui_httpd_allowed_host() -> None:
+    """OP25 4.11+ Host allowlist is managed via community.openwrt.uci, not shell uci."""
+    tasks = {task.get("name"): task for task in _tasks(yaml.safe_load((ROLE / "tasks/access_control.yml").read_text()))}
+    task = tasks["Configure GL.iNet admin panel allowed hosts"]
+    uci = task["community.openwrt.uci"]
+    assert uci["command"] == "set"
+    assert uci["key"] == "oui-httpd.main.allowed_host"
+    assert uci["value"] == "{{ flint2_access_control.admin.allowed_hosts }}"
+    assert task["notify"] == "flint2 nginx changed"
+    assert "flint2_access_control_enabled | bool" in task["when"]
+    assert "flint2_access_control.admin.allowed_hosts | length > 0" in task["when"]
+
+
+def test_verify_asserts_oui_httpd_allowed_host() -> None:
+    tasks = {task.get("name"): task for task in _tasks(yaml.safe_load((ROLE / "tasks/verify.yml").read_text()))}
+    read = tasks["Read GL.iNet admin panel allowed hosts"]
+    assert read["community.openwrt.uci"]["key"] == "oui-httpd.main.allowed_host"
+    assert read["register"] == "flint2_verify_admin_allowed_hosts"
+    assert "flint2_verify_glinet_settings | bool" in read["when"]
+    assert "flint2_access_control.admin.allowed_hosts | length > 0" in read["when"]
+
+    assert_task = tasks["Assert GL.iNet admin panel allowed hosts match desired values"]
+    that = "\n".join(assert_task["ansible.builtin.assert"]["that"])
+    assert "flint2_verify_admin_allowed_hosts.result_list" in that
+    assert "flint2_access_control.admin.allowed_hosts" in that
+
+
+def test_molecule_covers_oui_httpd_allowed_host() -> None:
+    molecule_vars = yaml.safe_load((ROLE / "molecule/default/molecule_vars.yml").read_text())
+    assert molecule_vars["flint2_fqdn"] == "molecule-flint2.example.test"
+
+    verify_tasks = {
+        task.get("name"): task
+        for play in yaml.safe_load((ROLE / "molecule/default/verify.yml").read_text())
+        for task in _tasks(play.get("tasks"))
+    }
+    read = verify_tasks["Read GL.iNet admin panel allowed hosts"]
+    assert read["community.openwrt.uci"]["key"] == "oui-httpd.main.allowed_host"
+
+    assert_task = verify_tasks["Assert GL.iNet admin panel allowed hosts include the Molecule FQDN"]
+    that = "\n".join(assert_task["ansible.builtin.assert"]["that"])
+    assert "flint2_molecule_verify_allowed_hosts.result_list" in that
+    assert "flint2_fqdn" in that

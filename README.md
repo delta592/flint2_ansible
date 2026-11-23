@@ -12,7 +12,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 - **Wireless** — 2.4 GHz and 5 GHz SSIDs via UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1` on OP25)
 - **LuCI** — installs bundled OP25 LuCI APKs, `uhttpd-mod-ucode`, and uHTTPd handler configuration
 - **Statistics** — LuCI Statistics (`collectd`) with thermal and sensors graphs under **Statistics → Graphs**
-- **Access Control** — GL.iNet admin panel, LuCI, and SSH ports, Force HTTPS, and auto-logout
+- **Access Control** — GL.iNet admin panel, LuCI, and SSH ports, Force HTTPS, auto-logout, and OP25 4.11+ custom-domain Host allowlist (`oui-httpd.main.allowed_host`)
 - **TLS** — private CA certificates on nginx (GL.iNet UI, port 443) and uHTTPd (LuCI, port 8443)
 - **SSH** — OpenSSH server with ssh-audit-hardened algorithms (PQ KEX, ETM MACs), password auth off, and `authorized_keys` management (replaces stock Dropbear)
 - **Verify** — post-apply checks for hostname, wireless, guest/IoT disabled state, and TLS fingerprints
@@ -235,7 +235,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | `wireless` | `wireless.yml`, `wireless_iface_options.yml` | 2.4/5 GHz wireless configuration; per-radio wifi-iface overrides (`iface_options`) |
 | `usteer` | `usteer.yml` | Active AP-side band steering (usteer + luci-app-usteer) |
 | `luci` | `luci.yml` | Bundled LuCI APK install and uHTTPd ucode handler (OP25) |
-| `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings |
+| `access_control` | `access_control.yml` | GL.iNet admin panel, LuCI, and SSH access settings (incl. `allowed_host`) |
 | `statistics` | `statistics.yml` | LuCI Statistics, collectd, and thermal/sensors plugins |
 | `tls` | `tls.yml` | Certificate deployment |
 | `nginx` | `nginx.yml` | GL.iNet nginx security headers / HSTS (`gl-conf.d`) |

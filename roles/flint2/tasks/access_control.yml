@@ -19,6 +19,18 @@
     value: "{{ flint2_access_control.admin.session_timeout_minutes | int * 60 }}"
   notify: flint2 nginx changed
 
+# OP25 4.11+: unregistered Host headers are blocked before the Admin Panel loads.
+# Prefer a declarative list set over shell `uci add_list` so Ansible owns the allowlist.
+- name: Configure GL.iNet admin panel allowed hosts
+  when:
+    - flint2_access_control_enabled | bool
+    - flint2_access_control.admin.allowed_hosts | length > 0
+  community.openwrt.uci:
+    command: set
+    key: oui-httpd.main.allowed_host
+    value: "{{ flint2_access_control.admin.allowed_hosts }}"
+  notify: flint2 nginx changed
+
 - name: Configure GL.iNet admin panel HTTP and HTTPS ports
   when:
     - flint2_access_control_enabled | bool

@@ -4,6 +4,7 @@
 # repeat role defaults on purpose: prepare.yml and verify.yml read them outside the
 # role, where role defaults are not visible.
 flint2_hostname: molecule-flint2
+flint2_fqdn: molecule-flint2.example.test
 flint2_firmware_auto_update_check: "0"
 flint2_verify_glinet_settings: false
 flint2_verify_live_hostname: false

@@ -108,7 +108,9 @@ argument_specs:
               memberships do not expire (UCI multicast_querier).
       flint2_fqdn:
         type: str
-        description: Fully qualified domain name used for TLS verification and SNI checks.
+        description: >-
+          Fully qualified domain name used for TLS verification, SNI checks, and
+          (on OP25 4.11+) the default oui-httpd.main.allowed_host entry.
       flint2_management_ip:
         type: str
         description: Expected management IP address for documentation and validation.
@@ -674,7 +676,9 @@ argument_specs:
         options:
           admin:
             type: dict
-            description: GL.iNet admin panel ports, Force HTTPS, and auto-logout settings.
+            description: >-
+              GL.iNet admin panel ports, Force HTTPS, auto-logout, and Host header
+              allowlist (allowed_hosts / oui-httpd.main.allowed_host).
             options:
               http_port:
                 type: int
@@ -691,6 +695,13 @@ argument_specs:
               session_timeout_minutes:
                 type: int
                 description: Admin auto-logout interval in minutes (stored as seconds in oui-httpd.main.session_timeout).
+              allowed_hosts:
+                type: list
+                elements: str
+                description: >-
+                  Hostnames allowed in the Admin Panel Host header (oui-httpd.main.allowed_host).
+                  Required on OP25 4.11+ when accessing the GL.iNet UI by a custom LAN domain
+                  instead of the management IP. Defaults to [flint2_fqdn] when flint2_fqdn is set.
           luci:
             type: dict
             description: LuCI uHTTPd listener and Force HTTPS settings.
