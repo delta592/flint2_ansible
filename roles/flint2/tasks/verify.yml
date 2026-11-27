@@ -42,6 +42,21 @@
       system.@system[0].clock_hourcycle is '{{ flint2_verify_clock_hourcycle.result }}',
       expected '{{ flint2_clock_hourcycle }}' (LuCI 24-Hour Clock is h23)
 
+- name: Read configured system log buffer size
+  community.openwrt.uci:
+    command: get
+    key: system.@system[0].log_size
+  register: flint2_verify_log_size
+  changed_when: false
+
+- name: Assert system log buffer size matches desired value
+  ansible.builtin.assert:
+    that:
+      - flint2_verify_log_size.result | int == flint2_log_size | int
+    fail_msg: >-
+      system.@system[0].log_size is '{{ flint2_verify_log_size.result }}',
+      expected '{{ flint2_log_size }}' (KiB)
+
 - name: Read live kernel hostname
   when:
     - flint2_verify_live_hostname | bool

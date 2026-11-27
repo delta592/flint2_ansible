@@ -35,6 +35,13 @@
     name: system
     state: reloaded
 
+# logd reads system.@system[0].log_size only when it starts (logd -S).
+- name: Restart system log
+  listen: flint2 log changed
+  community.openwrt.service:
+    name: log
+    state: restarted
+
 - name: Restart GL.iNet timer cron
   listen: flint2 gl_timer changed
   community.openwrt.service:

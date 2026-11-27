@@ -2,6 +2,9 @@
 flint2_hostname: router
 # LuCI System → System → Time Format (clock_hourcycle UCI option)
 flint2_clock_hourcycle: h23
+# LuCI System → System → Logging → System log buffer size (KiB).
+# system.@system[0].log_size; 8192 KiB is 8 MiB. logd reads it at start.
+flint2_log_size: 8192
 
 # GL.iNet UI → System → Upgrade → Automatic Update Check (upgrade.general.upgrade_enable)
 flint2_firmware_auto_update_check: "0"

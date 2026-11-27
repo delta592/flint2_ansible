@@ -12,3 +12,10 @@
     key: system.@system[0].clock_hourcycle
     value: "{{ flint2_clock_hourcycle }}"
   notify: flint2 system changed
+
+- name: Set system log buffer size
+  community.openwrt.uci:
+    command: set
+    key: system.@system[0].log_size
+    value: "{{ flint2_log_size }}"
+  notify: flint2 log changed

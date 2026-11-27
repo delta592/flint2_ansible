@@ -6,7 +6,7 @@ Configuration is driven by UCI and shell-based modules — no Python runtime is 
 
 ## Features
 
-- **System** — hostname, LuCI 24-hour clock (`clock_hourcycle=h23`), and AP-mode settings validated against live device state
+- **System** — hostname, LuCI 24-hour clock (`clock_hourcycle=h23`), system log buffer (`log_size=8192` KiB), and AP-mode settings validated against live device state
 - **Firmware** — GL.iNet Automatic Update Check disabled (`upgrade.general.upgrade_enable=0`)
 - **Scheduled reboot** — GL.iNet scheduled reboot every Tuesday at 03:17 local time (`gl_timer.reboot`)
 - **Wireless** — 2.4 GHz and 5 GHz SSIDs via UCI sections (`radio0`/`default_radio0`, `radio1`/`default_radio1` on OP25)
@@ -227,7 +227,7 @@ The [`flint2`](roles/flint2/) role is split into tagged task files:
 | Tag | Task file | Purpose |
 | --- | --- | --- |
 | `packages` | `packages.yml` | Optional package install/remove |
-| `system` | `system.yml` | Hostname, LuCI 24-hour clock |
+| `system` | `system.yml` | Hostname, LuCI 24-hour clock, system log buffer (`log_size`, 8192 KiB) |
 | `upgrade` | `upgrade.yml` | GL.iNet Automatic Update Check (`upgrade.general.upgrade_enable`) |
 | `scheduled_reboot` | `scheduled_reboot.yml` | GL.iNet scheduled reboot (`gl_timer.reboot`, Tuesday 03:17) |
 | `ntp` | `ntp.yml` | Upstream NTP time synchronization (`pool.ntp.org` via chronyd) |
@@ -248,6 +248,8 @@ Partial Make targets (for example `make system`) pass `--tags <area>,always` so 
 Run a subset with Make or Ansible directly:
 
 ```bash
+make system          # hostname, 24-hour clock, 8192 KiB log buffer
+make log-size         # same system tag; sets log_size
 make tls
 make nginx            # HSTS + security headers (F-07/F-09)
 make ssh              # OpenSSH algorithm hardening + authorized_keys

@@ -152,6 +152,50 @@ def test_optional_service_handlers_skip_missing_init_scripts() -> None:
         assert command["removes"] == init_script
 
 
+def test_system_sets_log_size() -> None:
+    """system.@system[0].log_size is set from flint2_log_size and restarts logd."""
+    defaults = yaml.safe_load((ROLE / "defaults/main.yml").read_text())
+    assert defaults["flint2_log_size"] == 8192
+
+    spec = yaml.safe_load((ROLE / "meta/argument_specs.yml").read_text())
+    option = spec["argument_specs"]["main"]["options"]["flint2_log_size"]
+    assert option["type"] == "int"
+    assert option["default"] == 8192
+    assert "system.@system[0].log_size" in option["description"]
+
+    tasks = {task.get("name"): task for task in _tasks(yaml.safe_load((ROLE / "tasks/system.yml").read_text()))}
+    task = tasks["Set system log buffer size"]
+    uci = task["community.openwrt.uci"]
+    assert uci["command"] == "set"
+    assert uci["key"] == "system.@system[0].log_size"
+    assert uci["value"] == "{{ flint2_log_size }}"
+    assert task["notify"] == "flint2 log changed"
+
+    handlers = yaml.safe_load((ROLE / "handlers/main.yml").read_text())
+    handler = next(item for item in handlers if item.get("name") == "Restart system log")
+    assert handler["listen"] == "flint2 log changed"
+    assert handler["community.openwrt.service"]["name"] == "log"
+    assert handler["community.openwrt.service"]["state"] == "restarted"
+
+
+def test_verify_asserts_log_size() -> None:
+    tasks = {task.get("name"): task for task in _tasks(yaml.safe_load((ROLE / "tasks/verify.yml").read_text()))}
+    read = tasks["Read configured system log buffer size"]
+    assert read["community.openwrt.uci"]["key"] == "system.@system[0].log_size"
+    assert read["register"] == "flint2_verify_log_size"
+
+    assert_task = tasks["Assert system log buffer size matches desired value"]
+    that = "\n".join(assert_task["ansible.builtin.assert"]["that"])
+    assert "flint2_verify_log_size.result | int == flint2_log_size | int" in that
+
+
+def test_makefile_log_size_target() -> None:
+    text = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert re.search(r"^log-size: system$", text, re.MULTILINE)
+    assert re.search(r"^system: install$", text, re.MULTILINE)
+    assert "--tags system,always" in text
+
+
 def test_deprecation_warnings_stay_enabled() -> None:
     """Unused callback notices are fixed without turning deprecation warnings off."""
     cfg = (ROOT / "ansible.cfg").read_text(encoding="utf-8")

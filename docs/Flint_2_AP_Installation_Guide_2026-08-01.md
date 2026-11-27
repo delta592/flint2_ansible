@@ -34,6 +34,7 @@ It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25**
 | NTP upstream | `pool.ntp.org` via `chronyd` |
 | Thermal monitoring | LuCI Statistics (`collectd-mod-thermal` / `collectd-mod-sensors`) |
 | LuCI time format | 24-Hour Clock (`system.@system[0].clock_hourcycle=h23`) |
+| System log buffer | 8192 KiB (`system.@system[0].log_size=8192`) |
 | GL.iNet UI | `https://wapap1003.federation.lcars/` (nginx, port 443) |
 | LuCI HTTP / HTTPS | ports `8080` / `8443` (uHTTPd) |
 | LuCI | `https://wapap1003.federation.lcars:8443/` |
@@ -325,7 +326,7 @@ Restore a backup only to the same or a clearly compatible firmware version.
 
 ---
 
-## 10. Set the hostname and LuCI time format
+## 10. Set the hostname, LuCI time format, and log buffer
 
 Use LuCI for the system hostname because the GL.iNet interface does not expose it clearly.
 
@@ -344,13 +345,21 @@ Time Format: 24-Hour Clock
 
 The time format is stored as UCI option `system.@system[0].clock_hourcycle=h23`.
 
+On the same page, open the **Logging** tab and set:
+
+```text
+System log buffer size: 8192
+```
+
+That value is KiB (8 MiB) and is stored as UCI option `system.@system[0].log_size=8192`. logd reads it when the log service restarts.
+
 Then click:
 
 ```text
 Save & Apply
 ```
 
-Alternatively, run `make site` or `make system` from this repository (see [section 19](#19-ansible-automation)).
+Alternatively, run `make site`, `make system`, or `make log-size` from this repository (see [section 19](#19-ansible-automation)). `make log-size` applies the `system` tag, so it also sets the hostname and 24-hour clock.
 
 Use the GL.iNet interface for settings it exposes. Use LuCI only for settings absent from the GL.iNet interface.
 
@@ -639,6 +648,7 @@ Use LuCI for:
 
 - Hostname
 - Time format (24-hour clock)
+- System log buffer size (8192 KiB; also applied by `make log-size`)
 - Logs and diagnostics
 - Configuration backups
 - Interface inspection / associated stations
@@ -751,7 +761,8 @@ Partial targets automatically run the `always`-tagged UCI commit/apply step (for
 
 | Make target | Ansible tags | Purpose |
 |---|---|---|
-| `make system` | `system,always` | Hostname, 24-hour clock |
+| `make system` | `system,always` | Hostname, 24-hour clock, 8192 KiB log buffer |
+| `make log-size` | `system,always` | System log buffer (`log_size=8192`); also applies the other `system` settings |
 | `make wireless` | `wireless,always` | ARGUS SSID, radio options, and usteer (usteer tag included) |
 | `make usteer` | `usteer,always` | Install/configure usteer active band steering |
 | `make scheduled-reboot` | `scheduled_reboot,always` | GL.iNet scheduled reboot, Tuesday 03:17 |

@@ -16,6 +16,13 @@ argument_specs:
         description: >-
           LuCI System → System → Time Format (system.@system[0].clock_hourcycle).
           Use h23 for 24-Hour Clock, h12 for 12-Hour Clock, or an empty string for Default.
+      flint2_log_size:
+        type: int
+        default: 8192
+        description: >-
+          System log buffer size in KiB (LuCI System → System → Logging →
+          System log buffer size; UCI system.@system[0].log_size).
+          8192 KiB is 8 MiB. logd applies it on restart.
       flint2_firmware_auto_update_check:
         type: str
         default: "0"

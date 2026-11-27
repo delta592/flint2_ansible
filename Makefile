@@ -220,10 +220,19 @@ site: install
 check: install
 	$(UV) run ansible-playbook playbooks/site.yml --check --diff
 
-## Configure hostname and system settings only
+## Validate applied configuration and TLS endpoints
+.PHONY: verify
+verify: install
+	$(UV) run ansible-playbook playbooks/site.yml --tags verify,always
+
+## Configure hostname, LuCI clock, and the system log buffer
 .PHONY: system
 system: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags system,always
+
+## Set log_size to 8192 KiB (runs the system tag)
+.PHONY: log-size
+log-size: system
 
 ## Configure the GL.iNet scheduled reboot only
 .PHONY: scheduled-reboot
@@ -284,7 +293,3 @@ ssh-audit:
 	@test -x "$(SSH_AUDIT)" || { echo "Missing executable: $(SSH_AUDIT)"; exit 1; }
 	$(SSH_AUDIT) $(SSH_AUDIT_HOST)
 
-## Validate applied configuration and TLS endpoints
-.PHONY: verify
-verify: install
-	$(UV) run ansible-playbook playbooks/site.yml --tags verify,always
