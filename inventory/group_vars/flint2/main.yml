@@ -94,6 +94,8 @@ flint2_wireless:
       random_bssid: "0"
 
 # Guest/IoT SSIDs stay disabled; rotate factory goodlife/psk2 to sae-mixed + strong key (F-03).
+# random_bssid=0 on these ifaces too: OP25's leftover 03_gl_random-bssid uci-defaults
+# re-runs each boot and sets wireless.<device>.random_bssid=1 for any iface still at 1.
 flint2_wireless_guest_ifaces:
   - guest2g
   - guest5g
@@ -102,6 +104,7 @@ flint2_wireless_guest_ifaces:
 flint2_wireless_guest:
   encryption: sae-mixed
   key: "{{ lookup('ansible.builtin.file', flint2_secrets_dir + '/' + flint2_wireless_guest_key_file) | trim }}"
+  random_bssid: "0"
 
 flint2_tls_enabled: true
 flint2_tls_leaf_cert: wapap1003.crt

@@ -353,14 +353,18 @@ argument_specs:
         default:
           - encryption
           - key
+          - random_bssid
         description: >-
           Shared wifi-iface option keys copied from flint2_wireless_guest onto
-          each guest/IoT interface (encryption, key).
+          each guest/IoT interface (encryption, key, random_bssid).
       flint2_wireless_guest:
         type: dict
         description: >-
-          Encryption and passphrase applied to guest/IoT wifi-ifaces so factory
-          defaults (psk2 / goodlife) are replaced even while disabled.
+          Encryption, passphrase, and randomized-BSSID flag applied to guest/IoT
+          wifi-ifaces so factory defaults (psk2 / goodlife / random_bssid=1) are
+          replaced even while disabled. random_bssid must stay 0 on OP25 so the
+          sticky 03_gl_random-bssid uci-defaults script does not re-enable
+          randomization on the parent wifi-device at each boot.
         options:
           encryption:
             type: str
@@ -370,6 +374,16 @@ argument_specs:
             type: str
             default: ""
             description: Guest/IoT passphrase applied when non-empty.
+          random_bssid:
+            type: str
+            choices:
+              - "0"
+              - "1"
+            default: "0"
+            description: >-
+              GL.iNet Enable Randomized BSSID on guest/IoT wifi-ifaces
+              (UCI wireless.<iface>.random_bssid). Keep "0" on OP25 so boot-time
+              03_gl_random-bssid does not set wireless.<device>.random_bssid=1.
       flint2_env_dir:
         type: path
         description: Control-node directory containing public certificates and SSH public keys.

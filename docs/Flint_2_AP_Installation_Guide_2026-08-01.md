@@ -30,7 +30,7 @@ It was updated in August 2026 after upgrading to **GL.iNet firmware 4.9.1-op25**
 | 5 GHz mode | `11n/ac/ax` (`htmode HE80`, `require_mode n`, `ht_coex 1`) |
 | 5 GHz channel / width | Channel **36**, **80 MHz** (UNII-1; no DFS/CAC) |
 | Security | WPA2-PSK/WPA3-SAE mixed mode (`sae-mixed`); WDS disabled (`wds 0`) |
-| Randomized BSSID | Disabled (`random_bssid=0` on radios and main ifaces) |
+| Randomized BSSID | Disabled (`random_bssid=0` on radios, main ifaces, and guest/IoT ifaces) |
 | NTP upstream | `pool.ntp.org` via `chronyd` |
 | Thermal monitoring | LuCI Statistics (`collectd-mod-thermal` / `collectd-mod-sensors`) |
 | LuCI time format | 24-Hour Clock (`system.@system[0].clock_hourcycle=h23`) |
@@ -433,14 +433,20 @@ GL.iNet UI **Wireless → Enable Randomized BSSID** is disabled on both main ARG
 
 On OP25 firmware the option exists on **both** `wifi-device` and `wifi-iface`. The GL.iNet UI reads the **iface** value. When disabling randomization, Ansible also restores each iface `macaddr` from `factory_macaddr` so the live BSSID matches the factory address (not a previously randomized MAC).
 
+Guest/IoT templates (`guest2g`, `guest5g`, `iot2g`, `iot5g`) also set `random_bssid=0`. On OP25 4.11+, a leftover `/etc/uci-defaults/03_gl_random-bssid` script re-runs on every boot (it exits non-zero so OpenWrt never deletes it). For any wifi-iface still at `random_bssid=1`, that script sets `wireless.<device>.random_bssid=1`, which undoes Ansible’s radio-level disable after the Tuesday scheduled reboot.
+
 ```text
 wireless.radio0.random_bssid=0
 wireless.radio1.random_bssid=0
 wireless.default_radio0.random_bssid=0
 wireless.default_radio1.random_bssid=0
+wireless.guest2g.random_bssid=0
+wireless.guest5g.random_bssid=0
+wireless.iot2g.random_bssid=0
+wireless.iot5g.random_bssid=0
 ```
 
-Ansible applies the iface option via `flint2_wireless.random_bssid` and the device option via each entry under `flint2_wireless.radios` in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml).
+Ansible applies the main-iface option via `flint2_wireless.random_bssid`, the device option via each entry under `flint2_wireless.radios`, and the guest/IoT option via `flint2_wireless_guest.random_bssid` in [`inventory/group_vars/flint2/main.yml`](../inventory/group_vars/flint2/main.yml).
 
 ### 802.11k / 802.11v BSS Transition
 

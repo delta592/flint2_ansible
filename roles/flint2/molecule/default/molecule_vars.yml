@@ -76,3 +76,4 @@ flint2_wireless_guest_ifaces:
 flint2_wireless_guest:
   encryption: sae-mixed
   key: molecule-guest-test-key
+  random_bssid: "0"

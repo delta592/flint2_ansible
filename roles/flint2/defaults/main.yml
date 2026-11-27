@@ -81,9 +81,13 @@ flint2_wireless_guest_ifaces: []
 flint2_wireless_guest_option_keys:
   - encryption
   - key
+  # Keep 0 so OP25 03_gl_random-bssid (re-run on every boot) does not flip
+  # wireless.radioN.random_bssid back to 1 when iterating guest/IoT ifaces.
+  - random_bssid
 flint2_wireless_guest:
   encryption: sae-mixed
   key: ""
+  random_bssid: "0"
 
 flint2_env_dir: "{{ inventory_dir }}/../.env"
 flint2_secrets_dir: "{{ inventory_dir }}/../.secrets"
