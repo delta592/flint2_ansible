@@ -74,6 +74,7 @@ set_env.TOX_WORK_DIR = "{toxworkdir}"
 [tool.tox.env.lint]
 description = "Run ansible-lint and yamllint"
 commands = [
+    ["uv", "run", "ansible-galaxy", "collection", "install", "-r", "requirements.yml", "-p", ".ansible/collections"],
     ["uv", "run", "ansible-lint"],
     ["uv", "run", "yamllint", "."],
 ]

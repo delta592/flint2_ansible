@@ -9,6 +9,7 @@ paths = [
   '''^\.env/''',
   '''^\.secrets/''',
   '''^collections/''',
+  '''^\.ansible/''',
   '''vault\.yml\.example$''',
   '''\.git/''',
 ]

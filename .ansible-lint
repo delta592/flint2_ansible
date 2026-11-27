@@ -3,6 +3,7 @@ profile: production
 
 exclude_paths:
   - .cache/
+  - .ansible/
   - .tox/
   - .venv/
   - collections/

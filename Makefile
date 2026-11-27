@@ -64,7 +64,7 @@ deps-update:
 ## Install Ansible collections from requirements.yml
 .PHONY: install
 install: setup
-	$(UV) run ansible-galaxy collection install -r requirements.yml -p collections
+	$(UV) run ansible-galaxy collection install -r requirements.yml -p .ansible/collections
 
 ## Install pre-commit Git hooks
 .PHONY: hooks
@@ -73,7 +73,7 @@ hooks: setup
 
 ## Run all linters (ansible-lint and yamllint)
 .PHONY: lint
-lint: setup
+lint: install
 	$(UV) run ansible-lint
 	$(UV) run yamllint .
 
