@@ -21,8 +21,13 @@ dev = [
     "requests==2.34.2",
     "tox==4.67.15",
     "tox-ansible==26.11.0",
+    "flint2-ansible-hooks",
     "yamllint==1.38.0",
 ]
+
+[tool.uv.sources]
+flint2-ansible-hooks = { path = "tools/ansible-hooks", editable = false }
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import traceback
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -149,6 +150,29 @@ def test_optional_service_handlers_skip_missing_init_scripts() -> None:
         command = handler["community.openwrt.command"]
         assert command["cmd"] == f"{init_script} restart"
         assert command["removes"] == init_script
+
+
+def test_deprecation_warnings_stay_enabled() -> None:
+    """Unused callback notices are fixed without turning deprecation warnings off."""
+    cfg = (ROOT / "ansible.cfg").read_text(encoding="utf-8")
+    assert "deprecation_warnings" not in cfg
+    assert "stdout_callback = ansible.builtin.default" in cfg
+    assert "oneline" not in cfg.split("stdout_callback", 1)[1].splitlines()[0]
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert re.search(r"^lint: install$", makefile, re.MULTILINE)
+    assert "-p .ansible/collections" in makefile
+    assert "collections_path = ./.ansible/collections" in cfg
+
+
+def test_config_dump_skips_only_unused_callback_notices() -> None:
+    import flint2_ansible_hooks as hook
+
+    config_dump = traceback.FrameSummary("ansible/cli/config.py", 1, "execute_dump")
+    playbook = traceback.FrameSummary("ansible/executor/task_queue_manager.py", 1, "load_callbacks")
+    assert hook.enumerating_unused_callback("oneline", [config_dump])
+    assert hook.enumerating_unused_callback("ansible.builtin.tree", [config_dump])
+    assert not hook.enumerating_unused_callback("oneline", [playbook])
+    assert not hook.enumerating_unused_callback("default", [config_dump])
 
 
 def test_access_control_sets_oui_httpd_allowed_host() -> None:

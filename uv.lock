@@ -490,6 +490,7 @@ dev = [
     { name = "ansible-lint" },
     { name = "ansible-navigator" },
     { name = "docker" },
+    { name = "flint2-ansible-hooks" },
     { name = "molecule" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -509,6 +510,7 @@ dev = [
     { name = "ansible-lint", specifier = "==26.11.0" },
     { name = "ansible-navigator", specifier = "==26.11.0" },
     { name = "docker", specifier = "==7.2.0" },
+    { name = "flint2-ansible-hooks", directory = "tools/ansible-hooks" },
     { name = "molecule", specifier = "==26.11.0" },
     { name = "pre-commit", specifier = "==4.7.0" },
     { name = "pytest", specifier = "==9.2.0" },
@@ -518,6 +520,11 @@ dev = [
     { name = "tox-ansible", specifier = "==26.11.0" },
     { name = "yamllint", specifier = "==1.38.0" },
 ]
+
+[[package]]
+name = "flint2-ansible-hooks"
+version = "1.0.0"
+source = { directory = "tools/ansible-hooks" }
 
 [[package]]
 name = "identify"
