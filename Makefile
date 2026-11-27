@@ -28,22 +28,27 @@ docker-check:
 		exit 1; \
 	}
 
-## Start Colima for Molecule Docker tests
-.PHONY: colima-start
-colima-start:
-	@if [ "$$(uname -m)" = "arm64" ]; then \
-		colima start --vm-type vz --vz-rosetta; \
-	else \
-		colima start; \
-	fi
+##@ Help
 
 ## Show this help
 .PHONY: help
 help:
 	@echo "Usage: make <target>"
+	@awk ' \
+		/^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5); next} \
+		/^## / {desc = substr($$0, 4); next} \
+		/^[a-zA-Z0-9_-]+:/ { \
+			if (desc) { \
+				target = $$1; \
+				sub(/:.*/, "", target); \
+				printf "  %-22s %s\n", target, desc; \
+				desc = ""; \
+			} \
+		} \
+	' $(MAKEFILE_LIST)
 	@echo ""
-	@awk '/^## /{desc=substr($$0,4)} /^[a-zA-Z_-]+:/{if(desc){printf "  %-22s %s\n",$$1,desc; desc=""}}' $(MAKEFILE_LIST) | sed 's/://' | sort
-	@echo ""
+
+##@ Setup
 
 ## Create the uv virtualenv and install Python dev dependencies
 .PHONY: setup
@@ -70,6 +75,8 @@ install: setup
 .PHONY: hooks
 hooks: setup
 	$(UV) run pre-commit install
+
+##@ Quality
 
 ## Run all linters (ansible-lint and yamllint)
 .PHONY: lint
@@ -104,6 +111,17 @@ pre-commit: setup
 .PHONY: sanity
 sanity: lint syntax pytest
 
+##@ Test
+
+## Start Colima for Molecule Docker tests
+.PHONY: colima-start
+colima-start:
+	@if [ "$$(uname -m)" = "arm64" ]; then \
+		colima start --vm-type vz --vz-rosetta; \
+	else \
+		colima start; \
+	fi
+
 ## Run Molecule integration tests for the flint2 role
 .PHONY: molecule
 molecule: setup install docker-check
@@ -137,6 +155,8 @@ tox: setup
 tox-ansible: setup
 	$(UV) run tox --ansible -e lint
 
+##@ Execution Environment
+
 ## Build the Ansible Execution Environment image
 .PHONY: ee-build
 ee-build: setup
@@ -152,6 +172,8 @@ navigator-lint: setup
 navigator-run: setup
 	@test -n "$(PLAYBOOK)" || (echo "Set PLAYBOOK=playbooks/site.yml" && exit 1)
 	$(UV) run ansible-navigator run $(PLAYBOOK) --eei $(EE_IMAGE) --rc ansible-navigator.yml -m stdout
+
+##@ Bootstrap & Recovery
 
 BOOTSTRAP_FILE := .secrets/bootstrap.yml
 
@@ -205,6 +227,8 @@ site-bootstrap: install bootstrap-check
 check-bootstrap: install bootstrap-check
 	$(UV) run ansible-playbook playbooks/site.yml --check --diff -e @$(BOOTSTRAP_FILE) $(if $(TAGS),--tags $(TAGS),)
 
+##@ Deploy
+
 ## Test SSH connectivity to the Flint 2
 .PHONY: ping
 ping: install
@@ -224,6 +248,8 @@ check: install
 .PHONY: verify
 verify: install
 	$(UV) run ansible-playbook playbooks/site.yml --tags verify,always
+
+##@ Site Configuration
 
 ## Configure hostname, LuCI clock, and the system log buffer
 .PHONY: system
@@ -292,4 +318,3 @@ SSH_AUDIT_HOST ?= 192.168.0.247
 ssh-audit:
 	@test -x "$(SSH_AUDIT)" || { echo "Missing executable: $(SSH_AUDIT)"; exit 1; }
 	$(SSH_AUDIT) $(SSH_AUDIT_HOST)
-
